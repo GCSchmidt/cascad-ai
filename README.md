@@ -1,2 +1,2 @@
 # cascad-ai
-A project with the aim of automatically score the created environment of a single player from a game of Cascadia from a photo..
+The goal of this project is to develop a system that automatically determines the score of a single player's Cascadia game board from a photograph of the completed environment.
