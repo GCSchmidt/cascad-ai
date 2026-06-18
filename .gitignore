@@ -90,4 +90,5 @@ poetry.lock
 Pipfile.lock
 
 # Directories
-datasets
+datasets/building_blocks
+datasets/for_model
