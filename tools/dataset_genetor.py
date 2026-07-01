@@ -5,6 +5,8 @@ import random
 from enum import Enum
 import re
 
+from cascadai.utils import tile_piece_utils
+
 
 class Piece_Type(Enum):
     STARTER_TILE = 1
@@ -23,6 +25,7 @@ ALL_TILE_COMBIS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tile_combis_bg_re
 ALL_TOKENS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tokens_bg_removed.png"
 BUILDING_BLOCKS_DIR = DATASET_DIR_PATH / "building_blocks"
 FOR_MODEL_DIR = DATASET_DIR_PATH / "for_model"
+SINGLE_PIECE_MASK_DIR = DATASET_DIR_PATH / "single_piece_masks"
 
 
 def get_background_mask(image_path):
@@ -54,18 +57,31 @@ def generate_pieces(piece_type, min_area=500):
 
     saved = 1
     for label in range(1, num_labels):
-        component_mask = np.where(labels == label, 255, 0).astype(np.uint8)
+        piece_mask = np.where(labels == label, 255, 0).astype(np.uint8)
 
-        if cv2.countNonZero(component_mask) < min_area:
+        if cv2.countNonZero(piece_mask) < min_area:
             continue
 
-        x, y, w, h = cv2.boundingRect(component_mask)
+        x, y, w, h = cv2.boundingRect(piece_mask)
 
         cropped_color = image_gbr[y:y+h, x:x+w]
-        cropped_mask = component_mask[y:y+h, x:x+w]
+        cropped_mask = piece_mask[y:y+h, x:x+w]
+
+        out_path = SINGLE_PIECE_MASK_DIR / f"{default_file_name}_{saved:03d}.png"
+
+        # save masks for testing
+        cv2.imwrite(str(out_path), cropped_mask)
 
         b, g, r = cv2.split(cropped_color)
         bgra = cv2.merge([b, g, r, cropped_mask])
+
+        match piece_type:
+            case Piece_Type.STARTER_TILE:
+                pass
+            case Piece_Type.TILE:
+                bgra = preprocess_tile_piece(bgra, cropped_mask)
+            case Piece_Type.TOKEN:
+                pass
 
         out_path = BUILDING_BLOCKS_DIR / f"{default_file_name}_{saved:03d}.png"
         cv2.imwrite(str(out_path), bgra)
@@ -73,6 +89,13 @@ def generate_pieces(piece_type, min_area=500):
    
     print(f"Saved {saved} {default_file_name}s to {BUILDING_BLOCKS_DIR}")
 
+
+def preprocess_tile_piece(bgra, mask):
+    padding = 10
+    mask = cv2.copyMakeBorder(mask, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=0)
+    corners = tile_piece_utils.find_tile_corners(mask)
+    processed_bgra = tile_piece_utils.rotate_and_crop_hexagon(bgra, corners)
+    return processed_bgra
 
 def generate_building_block_images():
     building_blocks_path = Path(BUILDING_BLOCKS_DIR)
@@ -130,16 +153,25 @@ def get_building_block_image(piece_type):
     return piece_file_path
 
 
-def generate_env_image():   
+def place_token_on_tile(tile_image)
+    token_path = get_building_block_image(Piece_Type.TOKEN)
+    token_image = cv2.imread(token_path, cv2.IMREAD_UNCHANGED)
+    covered_tile = overlay_centered(tile_image, token_image)
+
+
+def generate_env_image(): 
+    env_image = None  
+    
     tile_path = get_building_block_image(Piece_Type.TILE)
     token_path = get_building_block_image(Piece_Type.TOKEN)
     tile_image = cv2.imread(tile_path, cv2.IMREAD_UNCHANGED)
     token_image = cv2.imread(token_path, cv2.IMREAD_UNCHANGED)
     print(tile_path, token_path)
     covered_tile = overlay_centered(tile_image, token_image)
-    image_path = FOR_MODEL_DIR / "test.png"
-    cv2.imwrite(image_path, covered_tile)
-
+    
+    env_image_path = FOR_MODEL_DIR / "test.png"
+    cv2.imwrite(image_path, env_image)
+    
 
 if __name__ == "__main__":
     generate_building_block_images()
