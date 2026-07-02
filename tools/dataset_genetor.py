@@ -5,8 +5,7 @@ import random
 from enum import Enum
 import re
 
-from cascadai.utils import tile_piece_utils
-
+from cascadai.utils import tile_piece_utils, environment_graph_utils
 
 class Piece_Type(Enum):
     STARTER_TILE = 1
@@ -81,7 +80,7 @@ def generate_pieces(piece_type, min_area=500):
             case Piece_Type.TILE:
                 bgra = preprocess_tile_piece(bgra, cropped_mask)
             case Piece_Type.TOKEN:
-                pass
+                bgra = preprocess_token_piece(bgra)
 
         out_path = BUILDING_BLOCKS_DIR / f"{default_file_name}_{saved:03d}.png"
         cv2.imwrite(str(out_path), bgra)
@@ -90,12 +89,20 @@ def generate_pieces(piece_type, min_area=500):
     print(f"Saved {saved} {default_file_name}s to {BUILDING_BLOCKS_DIR}")
 
 
+
 def preprocess_tile_piece(bgra, mask):
     padding = 10
     mask = cv2.copyMakeBorder(mask, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=0)
     corners = tile_piece_utils.find_tile_corners(mask)
     processed_bgra = tile_piece_utils.rotate_and_crop_hexagon(bgra, corners)
     return processed_bgra
+
+
+def preprocess_token_piece(bgra):
+    scale = 1.5
+    processed_bgra = cv2.resize(bgra, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    return processed_bgra
+
 
 def generate_building_block_images():
     building_blocks_path = Path(BUILDING_BLOCKS_DIR)
@@ -153,26 +160,82 @@ def get_building_block_image(piece_type):
     return piece_file_path
 
 
-def place_token_on_tile(tile_image)
+def place_token_on_tile(tile_image):
     token_path = get_building_block_image(Piece_Type.TOKEN)
     token_image = cv2.imread(token_path, cv2.IMREAD_UNCHANGED)
     covered_tile = overlay_centered(tile_image, token_image)
+    return covered_tile
 
 
-def generate_env_image(): 
-    env_image = None  
-    
-    tile_path = get_building_block_image(Piece_Type.TILE)
-    token_path = get_building_block_image(Piece_Type.TOKEN)
-    tile_image = cv2.imread(tile_path, cv2.IMREAD_UNCHANGED)
-    token_image = cv2.imread(token_path, cv2.IMREAD_UNCHANGED)
-    print(tile_path, token_path)
-    covered_tile = overlay_centered(tile_image, token_image)
-    
+def generate_env_image():
+    side_length = 150
+    environment_graph = environment_graph_utils.generate_random_graph(23, side_length)
+
+    xs = [data["tile"].x for _, data in environment_graph.nodes(data=True)]
+    ys = [data["tile"].y for _, data in environment_graph.nodes(data=True)]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+
+    padding = 150
+    canvas_w = int(max_x - min_x + 2 * padding)
+    canvas_h = int(max_y - min_y + 2 * padding)
+    env_image = np.ones((canvas_h, canvas_w, 4), dtype=np.uint8) * 255
+
+    offset_x = padding - min_x
+    offset_y = padding - min_y
+
+    for node_id, data in environment_graph.nodes(data=True):
+        tile = data["tile"]
+
+        img_path = get_building_block_image(Piece_Type.TILE)
+        img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
+
+        img = place_token_on_tile(img)
+
+        if tile.theta != 0.0:
+            h, w = img.shape[:2]
+            M = cv2.getRotationMatrix2D(
+                (w / 2, h / 2), np.degrees(tile.theta), 1.0
+            )
+            img = cv2.warpAffine(
+                img, M, (w, h),
+                flags=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0, 0, 0, 0),
+            )
+
+        cx = int(round(tile.x + offset_x))
+        cy = int(round(tile.y + offset_y))
+        h, w = img.shape[:2]
+        x0, y0 = cx - w // 2, cy - h // 2
+
+        sx0, sy0 = max(0, -x0), max(0, -y0)
+        dx0, dy0 = max(0, x0), max(0, y0)
+        sx1 = min(w, canvas_w - x0)
+        sy1 = min(h, canvas_h - y0)
+        dx1 = min(canvas_w, x0 + w)
+        dy1 = min(canvas_h, y0 + h)
+
+        if sx0 >= sx1 or sy0 >= sy1:
+            continue
+
+        img_region = img[sy0:sy1, sx0:sx1]
+        canvas_region = env_image[dy0:dy1, dx0:dx1]
+
+        alpha = img_region[:, :, 3] / 255.0
+        alpha_3ch = np.dstack([alpha] * 3)
+        canvas_region[:, :, :3] = (
+            alpha_3ch * img_region[:, :, :3]
+            + (1 - alpha_3ch) * canvas_region[:, :, :3]
+        ).astype(np.uint8)
+        canvas_region[:, :, 3] = np.maximum(
+            canvas_region[:, :, 3], img_region[:, :, 3]
+        )
+
+    FOR_MODEL_DIR.mkdir(parents=True, exist_ok=True)
     env_image_path = FOR_MODEL_DIR / "test.png"
-    cv2.imwrite(image_path, env_image)
+    cv2.imwrite(str(env_image_path), env_image)
     
-
 if __name__ == "__main__":
     generate_building_block_images()
     generate_env_image()
