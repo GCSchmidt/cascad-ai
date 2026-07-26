@@ -89,7 +89,6 @@ def generate_pieces(piece_type, min_area=500):
     print(f"Saved {saved} {default_file_name}s to {BUILDING_BLOCKS_DIR}")
 
 
-
 def preprocess_tile_piece(bgra, mask):
     padding = 10
     mask = cv2.copyMakeBorder(mask, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=0)
@@ -112,10 +111,10 @@ def generate_building_block_images():
     generate_pieces(Piece_Type.TOKEN)
 
 
-def overlay_centered(background, foreground, max_deviation=10):
+def overlay_centered(background, foreground, shift=[0, 0]):
     """
     Place foreground centered on background with optional random offset.
-    max_deviation: max pixels to randomly shift in any direction (0 to disable)
+    shift: amount of pixels to shift foreground
     """
     bg_h, bg_w = background.shape[:2]
     fg_h, fg_w = foreground.shape[:2]
@@ -123,9 +122,8 @@ def overlay_centered(background, foreground, max_deviation=10):
     cx = (bg_w - fg_w) // 2
     cy = (bg_h - fg_h) // 2
 
-    if max_deviation > 0:
-        cx += random.randint(-max_deviation, max_deviation)
-        cy += random.randint(-max_deviation, max_deviation)
+    cx += shift[0]
+    cy += shift[1]
 
     cx = max(0, min(cx, bg_w - fg_w))
     cy = max(0, min(cy, bg_h - fg_h))
@@ -160,10 +158,23 @@ def get_building_block_image(piece_type):
     return piece_file_path
 
 
-def place_token_on_tile(tile_image):
+def place_token_on_tile(tile_image, shift=[0, 0]):
     token_path = get_building_block_image(Piece_Type.TOKEN)
     token_image = cv2.imread(token_path, cv2.IMREAD_UNCHANGED)
-    covered_tile = overlay_centered(tile_image, token_image)
+
+    theta = random.randint(0, 359)
+    h, w = token_image.shape[:2]
+    M = cv2.getRotationMatrix2D(
+        (w / 2, h / 2), np.degrees(theta), 1.0
+    )
+    token_image = cv2.warpAffine(
+        token_image, M, (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(0, 0, 0, 0),
+    )
+
+    covered_tile = overlay_centered(tile_image, token_image, shift)
     return covered_tile
 
 
@@ -189,8 +200,6 @@ def generate_env_image():
 
         img_path = get_building_block_image(Piece_Type.TILE)
         img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
-
-        img = place_token_on_tile(img)
 
         if tile.theta != 0.0:
             h, w = img.shape[:2]
@@ -222,6 +231,15 @@ def generate_env_image():
         img_region = img[sy0:sy1, sx0:sx1]
         canvas_region = env_image[dy0:dy1, dx0:dx1]
 
+        place_token = random.uniform(0, 1) > 0.1
+
+        if place_token:
+            max_deviation = 10
+            shift_x = random.randint(-max_deviation, max_deviation)
+            shift_y = random.randint(-max_deviation, max_deviation)
+            shift = [shift_x, shift_y]
+            img = place_token_on_tile(img, shift)
+
         alpha = img_region[:, :, 3] / 255.0
         alpha_3ch = np.dstack([alpha] * 3)
         canvas_region[:, :, :3] = (
@@ -235,7 +253,8 @@ def generate_env_image():
     FOR_MODEL_DIR.mkdir(parents=True, exist_ok=True)
     env_image_path = FOR_MODEL_DIR / "test.png"
     cv2.imwrite(str(env_image_path), env_image)
-    
+
+
 if __name__ == "__main__":
     generate_building_block_images()
     generate_env_image()
