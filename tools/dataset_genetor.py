@@ -5,7 +5,9 @@ import random
 from enum import Enum
 import re
 
-from cascadai.utils import tile_piece_utils, environment_graph_utils
+from cascadai.utils import tile_piece_utils, environment_graph_utils, annotation_utils
+from cascadai.schema import token_piece
+
 
 class Piece_Type(Enum):
     STARTER_TILE = 1
@@ -24,6 +26,8 @@ ALL_TILE_COMBIS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tile_combis_bg_re
 ALL_TOKENS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tokens_bg_removed.png"
 BUILDING_BLOCKS_DIR = DATASET_DIR_PATH / "building_blocks"
 FOR_MODEL_DIR = DATASET_DIR_PATH / "for_model"
+FOR_MODEL_IMG_DIR = FOR_MODEL_DIR / "images"
+FOR_MODEL_ANNO_DIR = FOR_MODEL_DIR / "annotations"
 SINGLE_PIECE_MASK_DIR = DATASET_DIR_PATH / "single_piece_masks"
 
 
@@ -98,7 +102,7 @@ def preprocess_tile_piece(bgra, mask):
 
 
 def preprocess_token_piece(bgra):
-    scale = 1.5
+    scale = 2
     processed_bgra = cv2.resize(bgra, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     return processed_bgra
 
@@ -158,8 +162,8 @@ def get_building_block_image(piece_type):
     return piece_file_path
 
 
-def place_token_on_tile(tile_image, shift=[0, 0]):
-    token_path = get_building_block_image(Piece_Type.TOKEN)
+def place_token_on_tile(tile_image, token_type, shift=[0, 0]):
+    token_path = BUILDING_BLOCKS_DIR / f'token_00{token_type.value}.png'
     token_image = cv2.imread(token_path, cv2.IMREAD_UNCHANGED)
 
     theta = random.randint(0, 359)
@@ -179,6 +183,7 @@ def place_token_on_tile(tile_image, shift=[0, 0]):
 
 
 def generate_env_image():
+
     side_length = 150
     environment_graph = environment_graph_utils.generate_random_graph(23, side_length)
 
@@ -194,6 +199,9 @@ def generate_env_image():
 
     offset_x = padding - min_x
     offset_y = padding - min_y
+
+    env_image_path = FOR_MODEL_ANNO_DIR / "test.text" 
+    Annotation = annotation_utils.EnvImageAnnotation(env_image_path, env_image.shape)
 
     for node_id, data in environment_graph.nodes(data=True):
         tile = data["tile"]
@@ -234,11 +242,20 @@ def generate_env_image():
         place_token = random.uniform(0, 1) > 0.1
 
         if place_token:
+
+            token_type = random.choice(list(token_piece.Token_Type))
             max_deviation = 10
             shift_x = random.randint(-max_deviation, max_deviation)
             shift_y = random.randint(-max_deviation, max_deviation)
             shift = [shift_x, shift_y]
-            img = place_token_on_tile(img, shift)
+            img = place_token_on_tile(img, token_type, shift)
+
+            # write to annotation file
+            token_x = cx + shift_x
+            token_y = cy + shift_y
+            token_width = 170
+            token = token_piece.Token(token_type, token_x, token_y, token_width)
+            Annotation.append_annotation(token)
 
         alpha = img_region[:, :, 3] / 255.0
         alpha_3ch = np.dstack([alpha] * 3)
@@ -250,9 +267,10 @@ def generate_env_image():
             canvas_region[:, :, 3], img_region[:, :, 3]
         )
 
-    FOR_MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    env_image_path = FOR_MODEL_DIR / "test.png"
+    FOR_MODEL_IMG_DIR.mkdir(parents=True, exist_ok=True)
+    env_image_path = FOR_MODEL_IMG_DIR / "test.png"
     cv2.imwrite(str(env_image_path), env_image)
+    Annotation.write()
 
 
 if __name__ == "__main__":
