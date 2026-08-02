@@ -318,7 +318,9 @@ def generate_dataset_images(dataset_type: Dataset_Type, N: int = 1, tag: str = "
         image_path = image_dir / f"{file_prefix}{i}.png"
         anno_path = anno_dir / f"{file_prefix}{i}.txt"
         generate_dataset_sample(str(image_path), str(anno_path))
+        print(f"{i}/{N} for {dataset_type.name.lower()} ({i / N * 100:.0f}%)", end="\r", flush=True)
 
+    print()
     print(f"Generated {N} images in {FOR_MODEL_DIR / dirname}")
 
 
