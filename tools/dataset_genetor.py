@@ -1,9 +1,11 @@
+import argparse
 import cv2
 import numpy as np
 from pathlib import Path
 import random
 from enum import Enum
 import re
+import yaml
 
 from cascadai.utils import tile_piece_utils, environment_graph_utils, annotation_utils
 from cascadai.schema import token_piece
@@ -13,6 +15,12 @@ class Piece_Type(Enum):
     STARTER_TILE = 1
     TILE = 2
     TOKEN = 3
+
+
+class Dataset_Type(Enum):
+    TRAIN = 1
+    VALIDATION = 2
+    TEST = 3
 
 
 script_path = Path(__file__).resolve()
@@ -26,8 +34,6 @@ ALL_TILE_COMBIS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tile_combis_bg_re
 ALL_TOKENS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tokens_bg_removed.png"
 BUILDING_BLOCKS_DIR = DATASET_DIR_PATH / "building_blocks"
 FOR_MODEL_DIR = DATASET_DIR_PATH / "for_model"
-FOR_MODEL_IMG_DIR = FOR_MODEL_DIR / "images"
-FOR_MODEL_ANNO_DIR = FOR_MODEL_DIR / "annotations"
 SINGLE_PIECE_MASK_DIR = DATASET_DIR_PATH / "single_piece_masks"
 
 
@@ -182,7 +188,7 @@ def place_token_on_tile(tile_image, token_type, shift=[0, 0]):
     return covered_tile
 
 
-def generate_env_image():
+def generate_dataset_sample(image_path: str, anno_path: str):
 
     side_length = 150
     environment_graph = environment_graph_utils.generate_random_graph(23, side_length)
@@ -200,22 +206,21 @@ def generate_env_image():
     offset_x = padding - min_x
     offset_y = padding - min_y
 
-    env_image_path = FOR_MODEL_ANNO_DIR / "test.text" 
-    Annotation = annotation_utils.EnvImageAnnotation(env_image_path, env_image.shape)
+    Annotation = annotation_utils.EnvImageAnnotation(anno_path, env_image.shape)
 
     for node_id, data in environment_graph.nodes(data=True):
         tile = data["tile"]
 
-        img_path = get_building_block_image(Piece_Type.TILE)
-        img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
+        tile_img_path = get_building_block_image(Piece_Type.TILE)
+        tile_img = cv2.imread(str(tile_img_path), cv2.IMREAD_UNCHANGED)
 
         if tile.theta != 0.0:
-            h, w = img.shape[:2]
+            h, w = tile_img.shape[:2]
             M = cv2.getRotationMatrix2D(
                 (w / 2, h / 2), np.degrees(tile.theta), 1.0
             )
-            img = cv2.warpAffine(
-                img, M, (w, h),
+            tile_img = cv2.warpAffine(
+                tile_img, M, (w, h),
                 flags=cv2.INTER_LINEAR,
                 borderMode=cv2.BORDER_CONSTANT,
                 borderValue=(0, 0, 0, 0),
@@ -223,7 +228,7 @@ def generate_env_image():
 
         cx = int(round(tile.x + offset_x))
         cy = int(round(tile.y + offset_y))
-        h, w = img.shape[:2]
+        h, w = tile_img.shape[:2]
         x0, y0 = cx - w // 2, cy - h // 2
 
         sx0, sy0 = max(0, -x0), max(0, -y0)
@@ -236,7 +241,7 @@ def generate_env_image():
         if sx0 >= sx1 or sy0 >= sy1:
             continue
 
-        img_region = img[sy0:sy1, sx0:sx1]
+        tile_img_region = tile_img[sy0:sy1, sx0:sx1]
         canvas_region = env_image[dy0:dy1, dx0:dx1]
 
         place_token = random.uniform(0, 1) > 0.1
@@ -248,7 +253,7 @@ def generate_env_image():
             shift_x = random.randint(-max_deviation, max_deviation)
             shift_y = random.randint(-max_deviation, max_deviation)
             shift = [shift_x, shift_y]
-            img = place_token_on_tile(img, token_type, shift)
+            tile_img = place_token_on_tile(tile_img, token_type, shift)
 
             # write to annotation file
             token_x = cx + shift_x
@@ -257,22 +262,89 @@ def generate_env_image():
             token = token_piece.Token(token_type, token_x, token_y, token_width)
             Annotation.append_annotation(token)
 
-        alpha = img_region[:, :, 3] / 255.0
+        alpha = tile_img_region[:, :, 3] / 255.0
         alpha_3ch = np.dstack([alpha] * 3)
         canvas_region[:, :, :3] = (
-            alpha_3ch * img_region[:, :, :3]
+            alpha_3ch * tile_img_region[:, :, :3]
             + (1 - alpha_3ch) * canvas_region[:, :, :3]
         ).astype(np.uint8)
         canvas_region[:, :, 3] = np.maximum(
-            canvas_region[:, :, 3], img_region[:, :, 3]
+            canvas_region[:, :, 3], tile_img_region[:, :, 3]
         )
 
-    FOR_MODEL_IMG_DIR.mkdir(parents=True, exist_ok=True)
-    env_image_path = FOR_MODEL_IMG_DIR / "test.png"
-    cv2.imwrite(str(env_image_path), env_image)
+    cv2.imwrite(image_path, env_image)
     Annotation.write()
 
 
-if __name__ == "__main__":
+def generate_dataset_yaml(tag: str = ""):
+    yaml_path = FOR_MODEL_DIR / f"config{tag}.yml"
+    tokens_json = {tt.value: tt.name for tt in token_piece.Token_Type}
+
+    data = {
+        "path": yaml_path.name,
+        "train": f"train{tag}",
+        "val": f"val{tag}",
+        "test": f"test{tag}",
+        "names": tokens_json
+    }
+
+    with open(yaml_path, "w") as f:
+        yaml.dump(data, f, sort_keys=False)
+
+    print(f"Generated dataset config to {yaml_path}")
+
+
+def generate_dataset_images(dataset_type: Dataset_Type, N: int = 1, tag: str = ""):
+
+    dirname = ""
+    match dataset_type:
+        case Dataset_Type.TRAIN:
+            dirname = "train"
+        case Dataset_Type.VALIDATION:
+            dirname = "val"
+        case Dataset_Type.TEST:
+            dirname = "test"
+    dirname += tag
+
+    FOR_MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    image_dir = FOR_MODEL_DIR / dirname / "images"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    anno_dir = FOR_MODEL_DIR / dirname / "labels"
+    anno_dir.mkdir(parents=True, exist_ok=True) 
+
+    for i in range(1, 1+N):
+        image_path = image_dir / f"{i}.png"
+        anno_path = anno_dir / f"{i}.txt"
+        generate_dataset_sample(str(image_path), str(anno_path))
+
+    print(f"Generated {N} images in {FOR_MODEL_DIR / dirname}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate a synthetic Cascadia dataset (images + YOLO labels)."
+    )
+    parser.add_argument(
+        "-train",
+        type=int,
+        required=True,
+        help="Number of training images to generate",
+    )
+    parser.add_argument(
+        "-val",
+        type=int,
+        default=None,
+        help="Number of validation images to generate (default: 20% of train)",
+    )
+    args = parser.parse_args()
+
+    val_count = args.val if args.val is not None else int(round(0.2 * args.train))
+
     generate_building_block_images()
-    generate_env_image()
+    generate_dataset_images(Dataset_Type.TRAIN, args.train)
+    generate_dataset_images(Dataset_Type.VALIDATION, val_count)
+    generate_dataset_yaml()
+
+
+if __name__ == "__main__":
+    main()
