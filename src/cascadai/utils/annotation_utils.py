@@ -32,12 +32,14 @@ def PlotAnnotations(image_path: str, anno_path: str, save: bool = False):
         parts = line.split()
         if len(parts) != 5:
             continue
-        cls, cx, cy, wn, hn = map(float, parts)
-        cls, cx, cy = int(cls), int(cx), int(cy)
+        cls, xn, yn, wn, hn = map(float, parts)
+        cls, xn, yn = int(cls), xn, yn
         wp = wn * w
         hp = hn * h
-        x1 = cx - wp / 2
-        y1 = cy - hp / 2
+        xc = xn * w
+        yc = yn * h
+        x1 = xc - (wp / 2)
+        y1 = yc - (hp / 2)
 
         token_type = token_piece.Token_Type(cls)
         color = CLASS_COLORS.get(token_type, "#333333")
@@ -81,9 +83,11 @@ class EnvImageAnnotation():
         f.close
 
     def token_to_annotation(self, token: token_piece.Token) -> str:
+        scaled_x = token.x / self.image_shape[1]
+        scaled_y = token.y / self.image_shape[0]
         scaled_width = token.width / self.image_shape[1]
         scaled_height = token.width / self.image_shape[0]
-        return f'{token.type.value} {token.x} {token.y} {scaled_width} {scaled_height}'
+        return f'{token.type.value} {scaled_x} {scaled_y} {scaled_width} {scaled_height}'
 
     def append_annotation(self, token: token_piece.Token) -> None:
         self.tokens.append(token)
