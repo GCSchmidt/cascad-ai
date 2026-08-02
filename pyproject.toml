@@ -12,7 +12,8 @@ dependencies = [
     "opencv-python",
     "matplotlib",
     "networkx",
-    "pyyaml"
+    "pyyaml",
+    "ultralytics"
 ]
 
 [project.optional-dependencies]
