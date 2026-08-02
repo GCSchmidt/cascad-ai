@@ -311,10 +311,12 @@ def generate_dataset_images(dataset_type: Dataset_Type, N: int = 1, tag: str = "
     image_dir.mkdir(parents=True, exist_ok=True)
     anno_dir = FOR_MODEL_DIR / dirname / "labels"
     anno_dir.mkdir(parents=True, exist_ok=True) 
+    file_name_lenght = 10
 
     for i in range(1, 1+N):
-        image_path = image_dir / f"{i}.png"
-        anno_path = anno_dir / f"{i}.txt"
+        file_prefix = "0" * (file_name_lenght - len(str(i)))
+        image_path = image_dir / f"{file_prefix}{i}.png"
+        anno_path = anno_dir / f"{file_prefix}{i}.txt"
         generate_dataset_sample(str(image_path), str(anno_path))
 
     print(f"Generated {N} images in {FOR_MODEL_DIR / dirname}")
