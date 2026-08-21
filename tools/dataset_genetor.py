@@ -45,6 +45,23 @@ def get_background_mask(image_path):
     return binary_mask
 
 
+def _sort_reading_order(pieces, tolerance):
+    pieces = sorted(pieces, key=lambda p: p[2])
+    rows = []
+    for piece in pieces:
+        if rows:
+            row_cy = sum(p[2] for p in rows[-1]) / len(rows[-1])
+            if abs(piece[2] - row_cy) <= tolerance:
+                rows[-1].append(piece)
+                continue
+        rows.append([piece])
+
+    ordered = []
+    for row in rows:
+        ordered.extend(sorted(row, key=lambda p: p[1]))
+    return [p[0] for p in ordered]
+
+
 def generate_pieces(piece_type, min_area=500):
     match piece_type:
         case Piece_Type.STARTER_TILE:
@@ -64,7 +81,8 @@ def generate_pieces(piece_type, min_area=500):
 
     num_labels, labels = cv2.connectedComponents(mask)
 
-    saved = 1
+    candidates = []
+    heights = []
     for label in range(1, num_labels):
         piece_mask = np.where(labels == label, 255, 0).astype(np.uint8)
 
@@ -72,11 +90,22 @@ def generate_pieces(piece_type, min_area=500):
             continue
 
         x, y, w, h = cv2.boundingRect(piece_mask)
+        candidates.append((label, x + w / 2, y + h / 2))
+        heights.append(h)
+
+    tolerance = float(np.median(heights)) / 2 if heights else 0
+    ordered_labels = _sort_reading_order(candidates, tolerance)
+
+    piece_number = 0
+    for label in ordered_labels:
+        piece_mask = np.where(labels == label, 255, 0).astype(np.uint8)
+
+        x, y, w, h = cv2.boundingRect(piece_mask)
 
         cropped_color = image_gbr[y:y+h, x:x+w]
         cropped_mask = piece_mask[y:y+h, x:x+w]
 
-        out_path = SINGLE_PIECE_MASK_DIR / f"{default_file_name}_{saved:03d}.png"
+        out_path = SINGLE_PIECE_MASK_DIR / f"{default_file_name}_{piece_number:03d}.png"
 
         # save masks for testing
         cv2.imwrite(str(out_path), cropped_mask)
@@ -92,11 +121,11 @@ def generate_pieces(piece_type, min_area=500):
             case Piece_Type.TOKEN:
                 bgra = preprocess_token_piece(bgra)
 
-        out_path = BUILDING_BLOCKS_DIR / f"{default_file_name}_{saved:03d}.png"
+        out_path = BUILDING_BLOCKS_DIR / f"{default_file_name}_{piece_number:03d}.png"
         cv2.imwrite(str(out_path), bgra)
-        saved += 1
+        piece_number += 1
    
-    print(f"Saved {saved} {default_file_name}s to {BUILDING_BLOCKS_DIR}")
+    print(f"Saved {piece_number} {default_file_name}s to {BUILDING_BLOCKS_DIR}")
 
 
 def preprocess_tile_piece(bgra, mask):
