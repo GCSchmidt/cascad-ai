@@ -2,11 +2,11 @@ from enum import Enum
 
 
 class Token_Type(Enum):
-    BEAR = 1
-    FOX = 2
+    BEAR = 0
+    DEER = 1
+    SALMON = 2
     HAWK = 3
-    DEER = 4
-    SALMON = 5
+    FOX = 4
 
 
 class Token():
