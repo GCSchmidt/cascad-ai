@@ -310,7 +310,7 @@ def generate_dataset_yaml(tag: str = ""):
     tokens_json = {tt.value: tt.name for tt in token_piece.Token_Type}
 
     data = {
-        "path": FOR_MODEL_DIR,
+        "path": str(FOR_MODEL_DIR) ,
         "train": f"images/train{tag}",
         "val": f"images/val{tag}",
         "test": f"images/test{tag}",
