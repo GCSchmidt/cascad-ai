@@ -310,10 +310,10 @@ def generate_dataset_yaml(tag: str = ""):
     tokens_json = {tt.value: tt.name for tt in token_piece.Token_Type}
 
     data = {
-        "path": yaml_path.name,
-        "train": f"train{tag}",
-        "val": f"val{tag}",
-        "test": f"test{tag}",
+        "path": FOR_MODEL_DIR,
+        "train": f"images/train{tag}",
+        "val": f"images/val{tag}",
+        "test": f"images/test{tag}",
         "names": tokens_json
     }
 
@@ -336,9 +336,9 @@ def generate_dataset_images(dataset_type: Dataset_Type, N: int = 1, tag: str = "
     dirname += tag
 
     FOR_MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    image_dir = FOR_MODEL_DIR / dirname / "images"
+    image_dir = FOR_MODEL_DIR / "images" / dirname
     image_dir.mkdir(parents=True, exist_ok=True)
-    anno_dir = FOR_MODEL_DIR / dirname / "labels"
+    anno_dir = FOR_MODEL_DIR / "labels" / dirname 
     anno_dir.mkdir(parents=True, exist_ok=True) 
     file_name_lenght = 10
 
