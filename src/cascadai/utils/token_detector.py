@@ -15,7 +15,7 @@ def load_model(model_path: str):
     return YOLO(model_path)
 
 
-def detect_tokens(model, image_path: str, conf: float = 0.3, imgsz: int = 800):
+def detect_tokens(model, image_path: str, conf: float = 0.6, imgsz: int = 1024):
     results = model.predict(image_path, conf=conf, imgsz=imgsz)
     detections = []
     for r in results:
@@ -25,7 +25,6 @@ def detect_tokens(model, image_path: str, conf: float = 0.3, imgsz: int = 800):
             cls = int(box.cls[0])
             conf_v = float(box.conf[0])
             detections.append((x1, y1, x2, y2, cls, conf_v))
-            print(x1, y1, x2, y2, cls, conf_v)
     return detections
 
 
@@ -67,8 +66,8 @@ def main():
         help="path to YOLO weights",
     )
     parser.add_argument("-o", "--output", default="output", help="output directory")
-    parser.add_argument("--conf", type=float, default=0.3, help="confidence threshold")
-    parser.add_argument("--imgsz", type=int, default=800, help="inference image size")
+    parser.add_argument("--conf", type=float, default=0.6, help="confidence threshold")
+    parser.add_argument("--imgsz", type=int, default=1024, help="inference image size")
     args = parser.parse_args()
 
     model = load_model(args.model)

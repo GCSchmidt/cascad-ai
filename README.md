@@ -15,18 +15,19 @@ I want to automaically create and annotate a dataset to train a YOLO model.
 
 ## Token Detector Model
 
-Trained on 1000 Artifical images made with the dataset generator tool. Model was trained within 4 epochs.
+Trained on 2000 Artifical images made with the dataset generator tool. Model was trained within 5 epochs. Trained with imgsz param set to 800,
 
 Best model is saved at: `src/cascadai/models/token_detector_yolo11n/TokenNet.pt`
 
 The model has the yolo11n architecture.
 
 Notes on Perfomance:
-- model struggles the most with deer tokens
-- play around with confidence threshold and image size
-- sometime deers are detected when hexagons are missing on wooden surface.
+- really good performance for image size = 1024 and confidence threshold > 0.7
 
 ## Ideas 
 - remove background to prevent token incorrect token detection
 - use hough circle transformation to find locations of tokens
 - use a classifier (Auto encoder?) to classify regions where tokens were found 
+- use detected tokens to build a graph
+- use the detected tokens to sample local hexagons
+- train a classifier to classify a hexagon based on local sample region, which is occluded/coverd by a token / or not.
