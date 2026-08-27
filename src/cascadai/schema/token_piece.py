@@ -16,3 +16,6 @@ class Token():
         self.x = x
         self.y = y
         self.width = width
+
+    def __repr__(self) -> str:
+        return f"type: {self.type.name} | x: {self.x} | y: {self.y} | width: {self.width} "
