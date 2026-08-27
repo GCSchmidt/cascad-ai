@@ -14,7 +14,6 @@ from cascadai.utils import environment_graph_utils
 
 MODEL_PATH = "src/cascadai/models/token_detector_yolo11n/TokenNet.pt"
 
-
 class Score_Card(Enum):
     A = 0
     B = 1
@@ -46,37 +45,148 @@ def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
     """
     nodes_of_type = [n for n, attrs in EG.EG.nodes(data=True) if attrs.get("type") == toke_type]
 
-    # 2. Build the induced subgraph on just those nodes
-    #    (only edges between same-type nodes survive)
+    # Build the induced subgraph on just those nodes
+    # only edges between same-type nodes survive
     subgraph = EG.EG.subgraph(nodes_of_type)
-    
-    # 3. Connected components of that subgraph = clusters
+
+    # Connected components of that subgraph = clusters
     clusters = list(nx.connected_components(subgraph))
-    
+
     # Sort by size, descending
     clusters.sort(key=len, reverse=True)
 
-    print(f"Amount of {toke_type.name} clusters = {len(clusters)}")
-    for i, c in enumerate(clusters):
-        print(f"{toke_type.name} cluster {i+1} size = {len(c)}")
-    
     return clusters
 
 
 def score_bears_A(EG: EnvironmentGraph) -> int:
+    """
+    Mating pair scoring. Score for number of pairs of Bears with no other bears next to them.
+
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
+    clusters = find_clusters(EG, Token_Type.BEAR)
+
+    if len(clusters) == 0:
+        return 0
+
+    n_pairs = 0
+
+    for c in clusters:
+        if len(c) == 2:
+            n_pairs += 1
+
+    match n_pairs:
+        case 0:
+            return 0
+        case 1:
+            return 4
+        case 2:
+            return 11
+        case 3:
+            return 19
+        case _: 
+            # >= 4 
+            return 27
+
     return 0
 
 
 def score_bears_B(EG: EnvironmentGraph) -> int:
-    return 0
+    """
+    Mother and Cubs scoring. Score per group of 3 Bears with no other bears next to it.
+
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
+    clusters = find_clusters(EG, Token_Type.BEAR)
+
+    if len(clusters) == 0:
+        return 0
+
+    n_mom_and_cubs = 0
+
+    for c in clusters:
+        if len(c) == 3:
+            n_mom_and_cubs += 1
+
+    return n_mom_and_cubs * 10
 
 
 def score_bears_C(EG: EnvironmentGraph) -> int:
-    return 0
+    """
+    Family scoring. Score per group of with no other bears next to it.
+
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
+    clusters = find_clusters(EG, Token_Type.BEAR)
+
+    if len(clusters) == 0:
+        return 0
+
+    has_single = False
+    has_pair = False
+    has_family = False
+
+    score = 0
+
+    for c in clusters:
+        fam_size = len(c)
+        match fam_size:
+            case 1:
+                score += 2
+                has_single = True
+            case 2:
+                score += 5
+                has_pair = True
+            case 3:
+                score += 8
+                has_family = True
+
+    if has_single and has_pair and has_family:
+        score += 3
+
+    return score
 
 
 def score_bears_D(EG: EnvironmentGraph) -> int:
-    return 0
+    """
+    Big Group scoring. Score per group of with no other bears next to it.
+
+    Args:
+        EG (EnvironmentGraph):
+
+    Returns:
+        int: score
+    """
+    clusters = find_clusters(EG, Token_Type.BEAR)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0 
+
+    for c in clusters:
+        group_size = len(c)
+        match group_size:
+            case 2:
+                score += 5
+            case 3:
+                score += 8
+            case 4:
+                score += 13
+
+    return score
 
 
 def score_deer_A(EG: EnvironmentGraph) -> int:
@@ -220,7 +330,6 @@ def score_foxes(EG: EnvironmentGraph, SC: Score_Card) -> int:
             raise Exception("No Score Card provided for Fox")
 
 def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Type) -> int:
-    clusters = find_clusters(EG, token_type)
     match token_type:
         case Token_Type.BEAR:
             match SC:
@@ -274,24 +383,31 @@ def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Typ
                     return score_foxes_D(EG)
         case _:
             raise Exception("No Toke Type was given")
-        
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Detect tokens in an image with a YOLO model"
     )
     parser.add_argument("-i", "--image", required=True, help="path to input image")
     parser.add_argument("-o", "--output", default="output", help="output directory")
+    parser.add_argument("-br", "--bear", default="A", help="Bear scoring card")
+    parser.add_argument("-dr", "--deer", default="A", help="Deer scoring card")
+    parser.add_argument("-sm", "--salmon", default="A", help="Salmon scoring card")
+    parser.add_argument("-hk", "--hawk", default="A", help="Hawk scoring card")
+    parser.add_argument("-fx", "--fox", default="A", help="Fox scoring card")
     args = parser.parse_args()
 
     tokens = detect_tokens(args.image)
     EG = EnvironmentGraph(tokens)
     environment_graph_utils.plot_environment_graph_tokens(EG)
     score = 0
-    score += score_token_type(EG, Score_Card.A, Token_Type.BEAR)
-    score += score_token_type(EG, Score_Card.A, Token_Type.DEER)
-    score += score_token_type(EG, Score_Card.A, Token_Type.SALMON)
-    score += score_token_type(EG, Score_Card.A, Token_Type.HAWK)
-    score += score_token_type(EG, Score_Card.A, Token_Type.FOX)
+    score += score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
+    score += score_token_type(EG, Score_Card[args.deer], Token_Type.DEER)
+    score += score_token_type(EG, Score_Card[args.salmon], Token_Type.SALMON)
+    score += score_token_type(EG, Score_Card[args.hawk], Token_Type.HAWK)
+    score += score_token_type(EG, Score_Card[args.fox], Token_Type.FOX)
+    print(score)
 
 
 if __name__ == "__main__":
