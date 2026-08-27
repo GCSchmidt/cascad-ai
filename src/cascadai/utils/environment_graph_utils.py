@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from cascadai.schema.tile_piece import TilePiece
+from cascadai.schema.environment_graph import EnvironmentGraph
 
 
 def generate_random_graph(n: int, side_length: float = 1.0, seed: int | None = None) -> nx.Graph:
@@ -123,3 +124,11 @@ def plot_environment_graph(
     ax.autoscale_view()
     ax.axis("off")
     return ax
+
+
+def plot_environment_graph_tokens(env_graph: EnvironmentGraph):
+    # generate a plot and save to file in out dir
+    pos = {n: (n.x, n.y) for n in env_graph.EG.nodes()}
+    nx.draw(env_graph.EG, pos, with_labels=False, node_size=50, node_color="skyblue", edge_color="red")
+    plt.savefig("../../../output/env_graph.png", dpi=150)
+    plt.close()
