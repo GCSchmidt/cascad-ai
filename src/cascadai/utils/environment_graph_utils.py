@@ -1,9 +1,15 @@
+import os
+from pathlib import Path
+
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
+
 from cascadai.schema.tile_piece import TilePiece
 from cascadai.schema.environment_graph import EnvironmentGraph
+from cascadai.utils.annotation_utils import CLASS_COLORS
 
 
 def generate_random_graph(n: int, side_length: float = 1.0, seed: int | None = None) -> nx.Graph:
@@ -126,9 +132,55 @@ def plot_environment_graph(
     return ax
 
 
-def plot_environment_graph_tokens(env_graph: EnvironmentGraph):
-    # generate a plot and save to file in out dir
-    pos = {n: (n.x, n.y) for n in env_graph.EG.nodes()}
-    nx.draw(env_graph.EG, pos, with_labels=False, node_size=50, node_color="skyblue", edge_color="red")
-    plt.savefig("../../../output/env_graph.png", dpi=150)
-    plt.close()
+def plot_environment_graph_tokens(
+    env_graph: EnvironmentGraph,
+    out_dir: str | Path = "output",
+    filename: str = "env_graph_tokens.png",
+):
+    """Plot the token environment graph.
+
+    Token coordinates are given in pixel/image space (y grows downward), so the
+    y-axis is inverted to match the image orientation and an equal aspect ratio
+    keeps x and y scales undistorted. Nodes are colored by token type and sized
+    by token width.
+    """
+    nodes = list(env_graph.EG.nodes())
+    widths = np.array([n.width for n in nodes], dtype=float)
+    median_width = np.median(widths)
+    scale = (40 / median_width) ** 2 if median_width > 0 else 1.0
+    node_sizes = [max(25, (w * w) * scale) for w in widths]
+    node_colors = [CLASS_COLORS.get(n.type, "#333333") for n in nodes]
+    pos = {n: (n.x, n.y) for n in nodes}
+
+    xs = [n.x for n in nodes]
+    ys = [n.y for n in nodes]
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    nx.draw_networkx_edges(
+        env_graph.EG, pos, ax=ax,
+        edge_color="#555555", alpha=0.5, width=1.5,
+    )
+    ax.scatter(
+        xs, ys, s=node_sizes, c=node_colors,
+        edgecolors="black", linewidths=1.2, zorder=3,
+    )
+
+    legend_handles = [
+        Line2D([0], [0], marker="o", linestyle="None", markersize=8,
+               markerfacecolor=color, markeredgecolor="black", label=name)
+        for name, color in [(t.name, CLASS_COLORS[t]) for t in CLASS_COLORS]
+    ]
+    ax.legend(handles=legend_handles, loc="best", framealpha=0.9, title="Token type")
+
+    ax.set_title("Environment graph tokens")
+    ax.set_aspect("equal")
+    ax.invert_yaxis()
+    ax.axis("off")
+    plt.tight_layout()
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / filename
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
