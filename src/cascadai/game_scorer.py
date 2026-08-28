@@ -406,7 +406,44 @@ def score_foxes_C(EG: EnvironmentGraph) -> int:
 
 
 def score_foxes_D(EG: EnvironmentGraph) -> int:
-    return 0
+    clusters = find_clusters(EG, Token_Type.FOX)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+
+    for cluster in clusters:
+        n_pairs = 0
+        if len(cluster) < 2:
+            # single fox, no points
+            continue
+        elif len(cluster) > 2:
+            # Todo
+            # when a cluster has 3 or more foxes
+            # for each fox
+            # check if it has a neighbour fox
+            # if yes try and score, save score for pair
+            # after establishing the scores for all possible pairs
+            # keep the best pairs of foxes for maximum points
+            pass
+        else:
+            fox1, fox2 = cluster
+            print("pair")
+            neighbours1 = set(EG.EG.neighbors(fox1))
+            neighbours2 = set(EG.EG.neighbors(fox2))
+            neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
+            n_types = np.array([0]*4)
+            for neighbour in neighbours:
+                if neighbour.type == Token_Type.FOX:
+                    continue
+                n_types[neighbour.type.value] += 1
+            n_pairs = (n_types >= 2).sum()
+
+        if n_pairs:
+            score += n_pairs * 2 + 3
+
+    return score
 
 
 def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Type) -> int:
