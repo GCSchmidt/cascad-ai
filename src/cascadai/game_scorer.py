@@ -224,6 +224,25 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
 def score_hawks_A(EG: EnvironmentGraph) -> int:
     return 0
 
+    score = 0
+    singles = 0
+
+    for c in clusters:
+        group_size = len(c)
+        if group_size > 1:
+            continue
+
+        singles += 1
+
+        if singles < 2:
+            score += 2
+        elif singles < 6:
+            score += 3
+        elif singles < 9:
+            score += 4
+
+    return score
+
 
 def score_hawks_B(EG: EnvironmentGraph) -> int:
     return 0
