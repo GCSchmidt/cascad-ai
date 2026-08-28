@@ -189,24 +189,47 @@ def score_bears_D(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_deer_A(EG: EnvironmentGraph) -> int:
+def score_elk_A(EG: EnvironmentGraph) -> int:
+    clusters = find_clusters(EG, Token_Type.DEER)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0 
+
+    for c in clusters:
+        group_size = len(c)
+        match group_size:
+            case 1:
+                score += 2
+            case 2:
+                score += 5
+            case 3:
+                straight = False
+                if straight:
+                    score += 9
+                else:
+                    score += 9
+            case 4:
+                score += 13
+    return score
+
+def score_elk_B(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_deer_B(EG: EnvironmentGraph) -> int:
+def score_elk_C(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_deer_C(EG: EnvironmentGraph) -> int:
-    return 0
-
-
-def score_deer_D(EG: EnvironmentGraph) -> int:
+def score_elk_D(EG: EnvironmentGraph) -> int:
     return 0
 
 
 def score_salmon_A(EG: EnvironmentGraph) -> int:
-    return 0
+    clusters = find_clusters(EG, Token_Type.DEER)
+    score = 0
+    return score
 
 
 def score_salmon_B(EG: EnvironmentGraph) -> int:
@@ -222,7 +245,10 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
 
 
 def score_hawks_A(EG: EnvironmentGraph) -> int:
-    return 0
+    clusters = find_clusters(EG, Token_Type.HAWK)
+
+    if len(clusters) == 0:
+        return 0
 
     score = 0
     singles = 0
@@ -245,7 +271,29 @@ def score_hawks_A(EG: EnvironmentGraph) -> int:
 
 
 def score_hawks_B(EG: EnvironmentGraph) -> int:
-    return 0
+    clusters = find_clusters(EG, Token_Type.HAWK)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+    singles = 0
+
+    for c in clusters:
+        group_size = len(c)
+        if group_size > 1:
+            continue
+
+        singles += 1
+
+        if singles < 2:
+            score += 2
+        elif singles < 6:
+            score += 3
+        elif singles < 9:
+            score += 4
+
+    return score
 
 
 def score_hawks_C(EG: EnvironmentGraph) -> int:
@@ -289,17 +337,17 @@ def score_bears(EG: EnvironmentGraph, SC: Score_Card) -> int:
             raise Exception("No Score Card provided for Bear")
 
 
-def score_deer(EG: EnvironmentGraph, SC: Score_Card) -> int:
+def score_elk(EG: EnvironmentGraph, SC: Score_Card) -> int:
     clusters = find_clusters(EG, Token_Type.DEER)
     match SC:
         case Score_Card.A:
-            return score_deer_A(EG)
+            return score_elk_A(EG)
         case Score_Card.B:
-            return score_deer_B(EG)
+            return score_elk_B(EG)
         case Score_Card.C:
-            return score_deer_C(EG)
+            return score_elk_C(EG)
         case Score_Card.D:
-            return score_deer_D(EG)
+            return score_elk_D(EG)
         case _:
             raise Exception("No Score Card provided for Deer")
 
@@ -348,6 +396,7 @@ def score_foxes(EG: EnvironmentGraph, SC: Score_Card) -> int:
         case _:
             raise Exception("No Score Card provided for Fox")
 
+
 def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Type) -> int:
     match token_type:
         case Token_Type.BEAR:
@@ -363,13 +412,13 @@ def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Typ
         case Token_Type.DEER:
             match SC:
                 case Score_Card.A:
-                    return score_deer_A(EG)
+                    return score_elk_A(EG)
                 case Score_Card.B:
-                    return score_deer_B(EG)
+                    return score_elk_B(EG)
                 case Score_Card.C:
-                    return score_deer_C(EG)
+                    return score_elk_C(EG)
                 case Score_Card.D:
-                    return score_deer_D(EG)               
+                    return score_elk_D(EG)               
         case Token_Type.SALMON:
             match SC:
                 case Score_Card.A:
@@ -411,7 +460,7 @@ def main():
     parser.add_argument("-i", "--image", required=True, help="path to input image")
     parser.add_argument("-o", "--output", default="output", help="output directory")
     parser.add_argument("-br", "--bear", default="A", help="Bear scoring card")
-    parser.add_argument("-dr", "--deer", default="A", help="Deer scoring card")
+    parser.add_argument("-dr", "--elk", default="A", help="Deer scoring card")
     parser.add_argument("-sm", "--salmon", default="A", help="Salmon scoring card")
     parser.add_argument("-hk", "--hawk", default="A", help="Hawk scoring card")
     parser.add_argument("-fx", "--fox", default="A", help="Fox scoring card")
@@ -420,13 +469,18 @@ def main():
     tokens = detect_tokens(args.image)
     EG = EnvironmentGraph(tokens)
     environment_graph_utils.plot_environment_graph_tokens(EG)
-    score = 0
-    score += score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
-    score += score_token_type(EG, Score_Card[args.deer], Token_Type.DEER)
-    score += score_token_type(EG, Score_Card[args.salmon], Token_Type.SALMON)
-    score += score_token_type(EG, Score_Card[args.hawk], Token_Type.HAWK)
-    score += score_token_type(EG, Score_Card[args.fox], Token_Type.FOX)
-    print(score)
+    score_bear = score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
+    score_elk = score_token_type(EG, Score_Card[args.elk], Token_Type.DEER)
+    score_salmon = score_token_type(EG, Score_Card[args.salmon], Token_Type.SALMON)
+    score_hawk = score_token_type(EG, Score_Card[args.hawk], Token_Type.HAWK)
+    score_fox = score_token_type(EG, Score_Card[args.fox], Token_Type.FOX)
+    total_score = score_bear + score_elk + score_salmon + score_hawk + score_fox
+    print(f"Score for Bears [{args.bear}]: {score_bear}")
+    print(f"Score for Elk [{args.elk}]: {score_elk}")
+    print(f"Score for Salmon [{args.salmon}]: {score_salmon}")
+    print(f"Score for Hawks [{args.hawk}]: {score_hawk}")
+    print(f"Score for Foxes [{args.fox}]: {score_fox}")
+    print(f"Total Score for {total_score}")
 
 
 if __name__ == "__main__":
