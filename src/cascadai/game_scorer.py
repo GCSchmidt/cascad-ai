@@ -253,7 +253,34 @@ def score_elk_B(EG: EnvironmentGraph) -> int:
 
 
 def score_elk_C(EG: EnvironmentGraph) -> int:
-    return 0
+    clusters = find_clusters(EG, Token_Type.ELK)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+
+    for c in clusters:
+        herd_size = len(c)
+        match herd_size:
+            case 1 | 9 | 17:
+                score += 2
+            case 2 | 10 | 18:
+                score += 4
+            case 3 | 11 | 19:
+                score += 7
+            case 4 | 12 | 20:
+                score += 10
+            case 5 | 13:
+                score += 14
+            case 6 | 14:
+                score += 18
+            case 7 | 15:
+                score += 23
+            case 8 | 16:
+                score += 28
+
+    return score
 
 
 def score_elk_D(EG: EnvironmentGraph) -> int:
@@ -432,7 +459,7 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
             print("pair")
             neighbours1 = set(EG.EG.neighbors(fox1))
             neighbours2 = set(EG.EG.neighbors(fox2))
-            neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
+            neighbours = (neighbours1  | neighbours2) - {fox1, fox2}
             n_types = np.array([0]*4)
             for neighbour in neighbours:
                 if neighbour.type == Token_Type.FOX:
@@ -509,7 +536,7 @@ def main():
     parser.add_argument("-i", "--image", required=True, help="path to input image")
     parser.add_argument("-o", "--output", default="output", help="output directory")
     parser.add_argument("-br", "--bear", default="A", help="Bear scoring card")
-    parser.add_argument("-dr", "--elk", default="A", help="Elk scoring card")
+    parser.add_argument("-ek", "--elk", default="A", help="Elk scoring card")
     parser.add_argument("-sm", "--salmon", default="A", help="Salmon scoring card")
     parser.add_argument("-hk", "--hawk", default="A", help="Hawk scoring card")
     parser.add_argument("-fx", "--fox", default="A", help="Fox scoring card")
