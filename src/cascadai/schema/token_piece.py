@@ -3,7 +3,7 @@ from enum import Enum
 
 class Token_Type(Enum):
     BEAR = 0
-    DEER = 1
+    ELK = 1
     SALMON = 2
     HAWK = 3
     FOX = 4

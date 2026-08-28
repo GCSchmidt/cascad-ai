@@ -36,6 +36,16 @@ def detect_tokens(image_path):
     return tokens
 
 
+def find_all_tokens_of_type(EG: EnvironmentGraph, toke_type: Token_Type):
+    """
+    Find all nodes with a specific type.
+
+    Returns a list of nodes
+    """
+    nodes_of_type = [n for n, attrs in EG.EG.nodes(data=True) if attrs.get("type") == toke_type]
+    return nodes_of_type
+
+
 def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
     """
     Find all clusters (connected components) of nodes with a specific type.
@@ -43,7 +53,7 @@ def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
     Returns a list of clusters, where each cluster is a set of node ids,
     sorted by size (largest first).
     """
-    nodes_of_type = [n for n, attrs in EG.EG.nodes(data=True) if attrs.get("type") == toke_type]
+    nodes_of_type = find_all_tokens_of_type(EG, toke_type)
 
     # Build the induced subgraph on just those nodes
     # only edges between same-type nodes survive
@@ -56,6 +66,29 @@ def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
     clusters.sort(key=len, reverse=True)
 
     return clusters
+
+
+def prune_to_max_degree_2(subgraph: nx.Graph):
+    """
+    Greedily remove one high-degree node at a time until no node touches
+    more than 2 other nodes.
+
+    Args:
+        subgraph (nx.Graph): the cluster subgraph to prune.
+
+    Returns:
+        tuple: (list of remaining node ids, count of remaining nodes)
+    """
+    g = subgraph.copy()
+
+    while True:
+        high = [n for n in g.nodes if g.degree[n] > 2]
+        if not high:
+            break
+        g.remove_node(high[0])
+
+    remaining_nodes = list(g.nodes)
+    return remaining_nodes, len(remaining_nodes)
 
 
 def score_bears_A(EG: EnvironmentGraph) -> int:
@@ -190,7 +223,7 @@ def score_bears_D(EG: EnvironmentGraph) -> int:
 
 
 def score_elk_A(EG: EnvironmentGraph) -> int:
-    clusters = find_clusters(EG, Token_Type.DEER)
+    clusters = find_clusters(EG, Token_Type.ELK)
 
     if len(clusters) == 0:
         return 0
@@ -214,6 +247,7 @@ def score_elk_A(EG: EnvironmentGraph) -> int:
                 score += 13
     return score
 
+
 def score_elk_B(EG: EnvironmentGraph) -> int:
     return 0
 
@@ -227,7 +261,7 @@ def score_elk_D(EG: EnvironmentGraph) -> int:
 
 
 def score_salmon_A(EG: EnvironmentGraph) -> int:
-    clusters = find_clusters(EG, Token_Type.DEER)
+    clusters = find_clusters(EG, Token_Type.SALMON)
     score = 0
     return score
 
@@ -305,7 +339,21 @@ def score_hawks_D(EG: EnvironmentGraph) -> int:
 
 
 def score_foxes_A(EG: EnvironmentGraph) -> int:
-    return 0
+    fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
+
+    if len(fox_nodes) == 0:
+        return 0
+
+    score = 0
+
+    for fox in fox_nodes:
+        neighbours = EG.EG.neighbors(fox)
+        n_types = np.array([0]*5)
+        for neighbour in neighbours:
+            n_types[neighbour.type.value] = 1
+        score += np.sum(n_types)
+        
+    return score
 
 
 def score_foxes_B(EG: EnvironmentGraph) -> int:
@@ -320,83 +368,6 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_bears(EG: EnvironmentGraph, SC: Score_Card) -> int:
-
-    clusters = find_clusters(EG, Token_Type.BEAR)
-
-    match SC:
-        case Score_Card.A:
-            return score_bears_A(EG)
-        case Score_Card.B:
-            return score_bears_B(EG)
-        case Score_Card.C:
-            return score_bears_C(EG)
-        case Score_Card.D:
-            return score_bears_D(EG)
-        case _:
-            raise Exception("No Score Card provided for Bear")
-
-
-def score_elk(EG: EnvironmentGraph, SC: Score_Card) -> int:
-    clusters = find_clusters(EG, Token_Type.DEER)
-    match SC:
-        case Score_Card.A:
-            return score_elk_A(EG)
-        case Score_Card.B:
-            return score_elk_B(EG)
-        case Score_Card.C:
-            return score_elk_C(EG)
-        case Score_Card.D:
-            return score_elk_D(EG)
-        case _:
-            raise Exception("No Score Card provided for Deer")
-
-
-def score_salmon(EG: EnvironmentGraph, SC: Score_Card) -> int:
-    clusters = find_clusters(EG, Token_Type.SALMON)
-    match SC:
-        case Score_Card.A:
-            return score_salmon_A(EG)
-        case Score_Card.B:
-            return score_salmon_B(EG)
-        case Score_Card.C:
-            return score_salmon_C(EG)
-        case Score_Card.D:
-            return score_salmon_D(EG)
-        case _:
-            raise Exception("No Score Card provided for Salmon")
-
-
-def score_hawks(EG: EnvironmentGraph, SC: Score_Card) -> int:
-    clusters = find_clusters(EG, Token_Type.HAWK)
-    match SC:
-        case Score_Card.A:
-            return score_hawks_A(EG)
-        case Score_Card.B:
-            return score_hawks_B(EG)
-        case Score_Card.C:
-            return score_hawks_C(EG)
-        case Score_Card.D:
-            return score_hawks_D(EG)
-        case _:
-            raise Exception("No Score Card provided for Hawk")
-
-
-def score_foxes(EG: EnvironmentGraph, SC: Score_Card) -> int:
-    clusters = find_clusters(EG, Token_Type.HAWK)
-    match SC:
-        case Score_Card.A:
-            return score_foxes_A(EG)
-        case Score_Card.B:
-            return score_foxes_B(EG)
-        case Score_Card.C:
-            return score_foxes_C(EG)
-        case Score_Card.D:
-            return score_foxes_D(EG)
-        case _:
-            raise Exception("No Score Card provided for Fox")
-
-
 def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Type) -> int:
     match token_type:
         case Token_Type.BEAR:
@@ -409,7 +380,7 @@ def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Typ
                     return score_bears_C(EG)
                 case Score_Card.D:
                     return score_bears_D(EG)
-        case Token_Type.DEER:
+        case Token_Type.ELK:
             match SC:
                 case Score_Card.A:
                     return score_elk_A(EG)
@@ -460,7 +431,7 @@ def main():
     parser.add_argument("-i", "--image", required=True, help="path to input image")
     parser.add_argument("-o", "--output", default="output", help="output directory")
     parser.add_argument("-br", "--bear", default="A", help="Bear scoring card")
-    parser.add_argument("-dr", "--elk", default="A", help="Deer scoring card")
+    parser.add_argument("-dr", "--elk", default="A", help="Elk scoring card")
     parser.add_argument("-sm", "--salmon", default="A", help="Salmon scoring card")
     parser.add_argument("-hk", "--hawk", default="A", help="Hawk scoring card")
     parser.add_argument("-fx", "--fox", default="A", help="Fox scoring card")
@@ -470,7 +441,7 @@ def main():
     EG = EnvironmentGraph(tokens)
     environment_graph_utils.plot_environment_graph_tokens(EG)
     score_bear = score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
-    score_elk = score_token_type(EG, Score_Card[args.elk], Token_Type.DEER)
+    score_elk = score_token_type(EG, Score_Card[args.elk], Token_Type.ELK)
     score_salmon = score_token_type(EG, Score_Card[args.salmon], Token_Type.SALMON)
     score_hawk = score_token_type(EG, Score_Card[args.hawk], Token_Type.HAWK)
     score_fox = score_token_type(EG, Score_Card[args.fox], Token_Type.FOX)

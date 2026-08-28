@@ -10,7 +10,7 @@ CLASS_COLORS = {
     token_piece.Token_Type.BEAR: "#352c02",
     token_piece.Token_Type.FOX: "#ff7b00",  
     token_piece.Token_Type.HAWK: "#50a2e6",
-    token_piece.Token_Type.DEER: "#e0c466",
+    token_piece.Token_Type.ELK: "#e0c466",
     token_piece.Token_Type.SALMON: "#e972df",
 }
 
