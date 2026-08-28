@@ -363,6 +363,19 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
 def score_foxes_C(EG: EnvironmentGraph) -> int:
     return 0
 
+    score = 0
+
+    for fox in fox_nodes:
+        neighbours = EG.EG.neighbors(fox)
+        n_types = np.array([0]*4)
+        for neighbour in neighbours:
+            if neighbour.type == Token_Type.FOX:
+                continue
+            n_types[neighbour.type.value] += 1
+        score += n_types.max()
+
+    return score
+
 
 def score_foxes_D(EG: EnvironmentGraph) -> int:
     return 0
