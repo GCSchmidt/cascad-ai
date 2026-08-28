@@ -357,11 +357,39 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
 
 
 def score_foxes_B(EG: EnvironmentGraph) -> int:
-    return 0
+    fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
+
+    if len(fox_nodes) == 0:
+        return 0
+
+    score = 0
+
+    for fox in fox_nodes:
+        neighbours = EG.EG.neighbors(fox)
+        n_types = np.array([0]*4)
+        for neighbour in neighbours:
+            if neighbour.type == Token_Type.FOX:
+                continue
+            n_types[neighbour.type.value] += 1
+
+        n_pairs = (n_types >= 2).sum()
+
+        match n_pairs:
+            case 1:
+                score += 3
+            case 2:
+                score += 5
+            case 3:
+                score += 7
+                          
+    return score
 
 
 def score_foxes_C(EG: EnvironmentGraph) -> int:
-    return 0
+    fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
+
+    if len(fox_nodes) == 0:
+        return 0
 
     score = 0
 
