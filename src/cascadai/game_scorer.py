@@ -14,6 +14,7 @@ from cascadai.utils import environment_graph_utils
 
 MODEL_PATH = "src/cascadai/models/token_detector_yolo11n/TokenNet.pt"
 
+
 class Score_Card(Enum):
     A = 0
     B = 1
@@ -313,53 +314,151 @@ def score_elk_D(EG: EnvironmentGraph) -> int:
 
 
 def score_salmon_A(EG: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+    """
+    Score for each salmon in a salmon run. 
+    A solmon that touches more than 2 other may not be included in the salmon run.
+    Max salmon run length is 7.
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): 
 
     Returns:
-        int: _description_
+        int: score
     """
     clusters = find_clusters(EG, Token_Type.SALMON)
+
+    if len(clusters) == 0:
+        return 0
+
     score = 0
+
+    for c in clusters: 
+        cluster_graph = EG.EG.subgraph(c)
+        _, run_length = prune_to_max_degree_2(cluster_graph)
+
+        match run_length:
+            case 1:
+                score += 2
+            case 2:
+                score += 5
+            case 3:
+                score += 8
+            case 4:
+                score += 12
+            case 5:
+                score += 16
+            case 6:
+                score += 20
+            case _:
+                score += 25
+
     return score
 
 
 def score_salmon_B(EG: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+    """
+    Score for each salmon in a salmon run. 
+    A solmon that touches more than 2 other may not be included in the salmon run.
+    Max salmon run length is 5.
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): 
 
     Returns:
-        int: _description_
+        int: score
     """
-    return 0
+    clusters = find_clusters(EG, Token_Type.SALMON)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+
+    for c in clusters: 
+        cluster_graph = EG.EG.subgraph(c)
+        _, run_length = prune_to_max_degree_2(cluster_graph)
+
+        match run_length:
+            case 1:
+                score += 2
+            case 2:
+                score += 4
+            case 3:
+                score += 9
+            case 4:
+                score += 11
+            case _:
+                score += 17
+
+    return score
 
 
 def score_salmon_C(EG: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+    """
+    Score for each salmon in a salmon run. 
+    A solmon that touches more than 2 other may not be included in the salmon run.
+    Minimum salmon run length is 3.
+    Max salmon run length is 5.
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): 
 
     Returns:
-        int: _description_
+        int: score
     """
-    return 0
+    clusters = find_clusters(EG, Token_Type.SALMON)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+
+    for c in clusters: 
+        cluster_graph = EG.EG.subgraph(c)
+        _, run_length = prune_to_max_degree_2(cluster_graph)
+
+        if run_length < 3:
+            continue
+
+        match run_length:
+            case 3:
+                score += 10
+            case 4:
+                score += 12
+            case _:
+                score += 15
+
+    return score
 
 
 def score_salmon_D(EG: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+    """
+    Score for each salmon in a salmon run and adjacent animal tokens. 
+    A solmon that touches more than 2 other may not be included in the salmon run.
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): 
 
     Returns:
-        int: _description_
+        int: score
     """
-    return 0
+    clusters = find_clusters(EG, Token_Type.SALMON)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+
+    for c in clusters: 
+        cluster_graph = EG.EG.subgraph(c)
+        salmon_run, run_length = prune_to_max_degree_2(cluster_graph)
+
+        score += run_length
+        adjacent_tokens = set()
+        for salmon in salmon_run:
+            neighbours = set(EG.EG.neighbors(salmon))
+            adjacent_tokens = (adjacent_tokens | neighbours)
+
+        adjacent_tokens = adjacent_tokens - set(salmon_run)
+        score += len(adjacent_tokens)
+
+    return score
 
 
 def score_hawks_A(EG: EnvironmentGraph) -> int:
@@ -478,7 +577,7 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
         for neighbour in neighbours:
             n_types[neighbour.type.value] = 1
         score += np.sum(n_types)
-        
+  
     return score
 
 
@@ -515,7 +614,7 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
                 score += 5
             case 3:
                 score += 7
-                          
+              
     return score
 
 
