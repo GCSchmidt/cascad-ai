@@ -223,6 +223,15 @@ def score_bears_D(EG: EnvironmentGraph) -> int:
 
 
 def score_elk_A(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
+
     clusters = find_clusters(EG, Token_Type.ELK)
 
     if len(clusters) == 0:
@@ -249,6 +258,14 @@ def score_elk_A(EG: EnvironmentGraph) -> int:
 
 
 def score_elk_B(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
@@ -284,28 +301,77 @@ def score_elk_C(EG: EnvironmentGraph) -> int:
 
 
 def score_elk_D(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
 def score_salmon_A(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     clusters = find_clusters(EG, Token_Type.SALMON)
     score = 0
     return score
 
 
 def score_salmon_B(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
 def score_salmon_C(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
 def score_salmon_D(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
 def score_hawks_A(EG: EnvironmentGraph) -> int:
+    """Scores for each single hawk, which is not touching another.
+
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
+
     clusters = find_clusters(EG, Token_Type.HAWK)
 
     if len(clusters) == 0:
@@ -332,6 +398,15 @@ def score_hawks_A(EG: EnvironmentGraph) -> int:
 
 
 def score_hawks_B(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
+
     clusters = find_clusters(EG, Token_Type.HAWK)
 
     if len(clusters) == 0:
@@ -358,14 +433,38 @@ def score_hawks_B(EG: EnvironmentGraph) -> int:
 
 
 def score_hawks_C(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
 def score_hawks_D(EG: EnvironmentGraph) -> int:
+    """_summary_
+    TODO
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: _description_
+    """
     return 0
 
 
 def score_foxes_A(EG: EnvironmentGraph) -> int:
+    """
+    Score for each unique animal type around a fox.
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
     fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
 
     if len(fox_nodes) == 0:
@@ -384,6 +483,14 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
 
 
 def score_foxes_B(EG: EnvironmentGraph) -> int:
+    """
+    Score for each unique animal type pair around a fox.
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
     fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
 
     if len(fox_nodes) == 0:
@@ -413,6 +520,14 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
 
 
 def score_foxes_C(EG: EnvironmentGraph) -> int:
+    """
+    Score for the most frequent animal type around a fox.
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
     fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
 
     if len(fox_nodes) == 0:
@@ -433,6 +548,14 @@ def score_foxes_C(EG: EnvironmentGraph) -> int:
 
 
 def score_foxes_D(EG: EnvironmentGraph) -> int:
+    """
+    Score for each unique animal type pair around a pair of foxes.
+    Args:
+        EG (EnvironmentGraph): _description_
+
+    Returns:
+        int: score
+    """
     clusters = find_clusters(EG, Token_Type.FOX)
 
     if len(clusters) == 0:
@@ -459,7 +582,7 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
             print("pair")
             neighbours1 = set(EG.EG.neighbors(fox1))
             neighbours2 = set(EG.EG.neighbors(fox2))
-            neighbours = (neighbours1  | neighbours2) - {fox1, fox2}
+            neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
             n_types = np.array([0]*4)
             for neighbour in neighbours:
                 if neighbour.type == Token_Type.FOX:
