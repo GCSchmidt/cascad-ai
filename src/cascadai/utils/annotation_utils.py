@@ -15,7 +15,7 @@ CLASS_COLORS = {
 }
 
 
-def PlotAnnotations(image_path: str, anno_path: str, save: bool = False):
+def plot_annotations(image_path: str, anno_path: str, save: bool = False):
     img = plt.imread(image_path)
     h, w = img.shape[:2]
 
@@ -44,7 +44,7 @@ def PlotAnnotations(image_path: str, anno_path: str, save: bool = False):
         token_type = token_piece.Token_Type(cls)
         color = CLASS_COLORS.get(token_type, "#333333")
         label = token_type.name
-
+        
         rect = patches.Rectangle(
             (x1, y1), wp, hp, linewidth=2, edgecolor=color, facecolor="none"
         )
