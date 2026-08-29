@@ -14,7 +14,8 @@ dependencies = [
     "networkx",
     "pyyaml",
     "ultralytics"
-    "scipy"
+    "scipy",
+    "flask"
 ]
 
 [project.optional-dependencies]
