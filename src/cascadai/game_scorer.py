@@ -333,7 +333,12 @@ def score_salmon_A(EG: EnvironmentGraph) -> int:
 
     for c in clusters: 
         cluster_graph = EG.EG.subgraph(c)
-        _, run_length = prune_to_max_degree_2(cluster_graph)
+
+        # there is a salmon adjacent to the run
+        if max(dict(cluster_graph.degree()).values()) > 2:
+            continue
+
+        run_length = len(cluster_graph)
 
         match run_length:
             case 1:
@@ -374,7 +379,12 @@ def score_salmon_B(EG: EnvironmentGraph) -> int:
 
     for c in clusters: 
         cluster_graph = EG.EG.subgraph(c)
-        _, run_length = prune_to_max_degree_2(cluster_graph)
+
+        # there is a salmon adjacent to the run
+        if max(dict(cluster_graph.degree()).values()) > 2:
+            continue
+
+        run_length = len(cluster_graph)
 
         match run_length:
             case 1:
@@ -412,6 +422,7 @@ def score_salmon_C(EG: EnvironmentGraph) -> int:
 
     for c in clusters: 
         cluster_graph = EG.EG.subgraph(c)
+        max(dict(cluster_graph.degree()).values())
         _, run_length = prune_to_max_degree_2(cluster_graph)
 
         if run_length < 3:
@@ -447,15 +458,19 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
 
     for c in clusters: 
         cluster_graph = EG.EG.subgraph(c)
-        salmon_run, run_length = prune_to_max_degree_2(cluster_graph)
+        # there is a salmon adjacent to the run
+        if max(dict(cluster_graph.degree()).values()) > 2:
+            continue
+
+        run_length = len(cluster_graph)
 
         score += run_length
         adjacent_tokens = set()
-        for salmon in salmon_run:
+        for salmon in cluster_graph:
             neighbours = set(EG.EG.neighbors(salmon))
             adjacent_tokens = (adjacent_tokens | neighbours)
 
-        adjacent_tokens = adjacent_tokens - set(salmon_run)
+        adjacent_tokens = adjacent_tokens - set(cluster_graph)
         score += len(adjacent_tokens)
 
     return score
