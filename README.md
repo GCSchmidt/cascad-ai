@@ -24,6 +24,45 @@ The model has the yolo11n architecture.
 Notes on Perfomance:
 - really good performance for image size = 1024 and confidence threshold > 0.7
 
+
+## Run Scoring Script
+
+The `src/cascadai/game_scorer.py` script detects animal tokens in a photo of a Cascadia board, builds their adjacency graph, and prints the score for each animal (using the selected scoring card) plus the total.
+
+Run it from the repo root with the project virtual environment (it imports the installed `cascadai` package):
+
+```bash
+.venv/bin/python src/cascadai/game_scorer.py -i <path-to-image>
+```
+
+### Options
+
+| Flag | Long        | Default    | Description                              |
+|------|-------------|------------|------------------------------------------|
+| `-i` | `--image`   | *(required)* | Path to the input board photo          |
+| `-o` | `--output`  | `output`   | Output directory (see note below)        |
+| `-br`| `--bear`    | `A`        | Bear scoring card (A/B/C/D)              |
+| `-ek`| `--elk`     | `A`        | Elk scoring card (A/B/C/D)               |
+| `-sm`| `--salmon`  | `A`        | Salmon scoring card (A/B/C/D)            |
+| `-hk`| `--hawk`    | `A`        | Hawk scoring card (A/B/C/D)              |
+| `-fx`| `--fox`     | `A`        | Fox scoring card (A/B/C/D)               |
+
+### Example
+
+```bash
+.venv/bin/python src/cascadai/game_scorer.py \
+  -i datasets/real_games/1.jpg \
+  -br B -ek A -sm D -hk C -fx B
+```
+
+### Output
+
+The script prints a score line per animal and the total, for example `Score for Bears [B]: 4` and `Total Score for 22`. It also writes a token environment-graph plot to `output/env_graph_tokens.png`.
+
+Notes:
+- The `-o/--output` flag is currently unused by the script; the environment-graph plot always saves to `output/`.
+- Scoring depends on the trained YOLO token detector. Some score-card functions (e.g. Elk B/D, Salmon, Hawks C/D) are still placeholders that return `0`, so results for those entries are not yet complete.
+
 ## Ideas 
 - remove background to prevent token incorrect token detection
 - use hough circle transformation to find locations of tokens
