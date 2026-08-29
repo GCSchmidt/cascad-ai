@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}About · CascadAI{% endblock %}
+
+{% block content %}
+    <h1>About<span class="accent">.</span></h1>
+    <p class="lead">CascadAI is a project to automatically determine the score of a single player's Cascadia board game from a photograph of the completed environment.</p>
+
+    <div class="card">
+        <h2>Project</h2>
+        <p>
+            The system detects the animal tokens on the board from an uploaded image, builds their adjacency graph,
+            and applies the rules for each selected scoring card (A, B, C, or D) to compute the final score.
+        </p>
+        <p class="text-muted" style="margin-top: 1rem;">
+            Scoring cards are selected per animal type on the
+            <a href="{{ url_for('auto_score') }}" style="color: var(--primary);">Auto Score</a> page.
+        </p>
+    </div>
+{% endblock %}

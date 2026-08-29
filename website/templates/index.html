@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Home · CascadAI{% endblock %}
+
+{% block content %}
+    <h1>CascadAI<span class="accent">.</span></h1>
+    <p class="lead">Automatically score your Cascadia board game from a photo.</p>
+
+    <div class="card">
+        <h2>How it works</h2>
+        <p>Upload a photo of your completed Cascadia environment, select a scoring card for each animal type, and get your final score.</p>
+        <p class="text-muted" style="margin-top: 1rem;">
+            Head to the <a href="{{ url_for('auto_score') }}" style="color: var(--primary);">Auto Score</a> page to get started.
+        </p>
+    </div>
+{% endblock %}

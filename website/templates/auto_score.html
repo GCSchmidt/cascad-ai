@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Auto Score · CascadAI{% endblock %}
+
+{% block content %}
+    <h1>Auto Score<span class="accent">.</span></h1>
+    <p class="lead">Select a scoring card for each animal and upload a photo of your board.</p>
+
+    <form method="POST" action="{{ url_for('auto_score') }}" enctype="multipart/form-data">
+        <div class="section">
+            <div class="section-title">Scoring cards</div>
+            <div class="card">
+                {% for animal in animals %}
+                <div class="animal-row">
+                    <span class="animal-label">
+                        <span class="token-dot token-{{ animal|lower }}"></span>
+                        {{ animal }}
+                    </span>
+                    <div class="select-wrapper">
+                        <select name="{{ animal|lower }}_card" aria-label="{{ animal }} scoring card">
+                            {% for card in score_cards %}
+                            <option value="{{ card }}" {% if cards and cards[animal] == card %}selected{% endif %}>{{ card }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Board photo</div>
+            <div class="card">
+                <div class="form-group" style="margin-top: 0;">
+                    <label for="board_image">Board image</label>
+                    <div class="file-input-wrap">
+                        <input type="file" id="board_image" name="board_image" accept="image/*" required>
+                        <span>Click or drag to upload a single image</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn">Score my game</button>
+
+        {% if submitted %}
+        <div class="result" role="status">
+            <strong>Submitted (scoring coming soon).</strong>
+            {% if filename %}
+            <div>Image: <code>{{ filename }}</code></div>
+            {% endif %}
+            <ul>
+                {% for animal in animals %}
+                <li>{{ animal }}: card {{ cards[animal] }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </form>
+{% endblock %}
