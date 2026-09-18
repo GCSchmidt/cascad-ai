@@ -1,11 +1,14 @@
 import os
 from pathlib import Path
+import random 
+import cv2
 
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
+from matplotlib import colormaps
 
 from cascadai.schema.tile_piece import TilePiece
 from cascadai.schema.environment_graph import EnvironmentGraph
@@ -133,7 +136,7 @@ def plot_environment_graph(
 
 
 def plot_environment_graph_tokens(
-    env_graph: EnvironmentGraph,
+    env_graph: nx.Graph,
     out_dir: str | Path = "output",
     filename: str = "env_graph_tokens.png",
 ):
@@ -144,7 +147,7 @@ def plot_environment_graph_tokens(
     keeps x and y scales undistorted. Nodes are colored by token type and sized
     by token width.
     """
-    nodes = list(env_graph.EG.nodes())
+    nodes = list(env_graph.nodes())
     widths = np.array([n.width for n in nodes], dtype=float)
     median_width = np.median(widths)
     scale = (40 / median_width) ** 2 if median_width > 0 else 1.0
@@ -157,7 +160,7 @@ def plot_environment_graph_tokens(
     fig, ax = plt.subplots(figsize=(10, 10))
 
     nx.draw_networkx_edges(
-        env_graph.EG, pos, ax=ax,
+        env_graph, pos, ax=ax,
         edge_color="#555555", alpha=0.5, width=1.5,
     )
     ax.scatter(
@@ -184,3 +187,60 @@ def plot_environment_graph_tokens(
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out_path
+
+
+def plot_hexagonal_axis(
+    image_path: str | Path,
+    env_graph: EnvironmentGraph,
+    save: bool = False,
+):
+    """Overlay the 6 hexagonal axis directions onto an image.
+
+    The EnvironmentGraph's ``primary_axis`` (set by
+    ``hex_lattice_orientation_estimation``) is the base angle; the other 5
+    directions are every 60° from it. Lines are drawn bidirectionally through
+    the centroid of the graph's tokens. Angles are interpreted in image space
+    (y grows downward), matching how ``primary_axis`` is computed.
+    """
+    base = env_graph.primary_axis
+    angles = np.deg2rad(np.array([base + 60 * k for k in range(6)]))
+
+    img = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
+    w, h = img.shape[:2]
+
+    nodes = list(env_graph.token_graph.nodes())
+    node = random.choice(nodes)
+    cx, cy = node.x, node.y
+
+    extent = np.hypot(w, h) * 0.1
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.imshow(img)
+    ax.plot(cx, cy, "ko", zorder=3)
+
+    for i, theta in enumerate(angles):
+        dir_x, dir_y = np.cos(theta), np.sin(theta)
+        ax.plot(
+            [cx - extent * dir_x, cx + extent * dir_x],
+            [cy - extent * dir_y, cy + extent * dir_y],
+            color="#00ff1d", ls="--", alpha=0.7, lw=1.5,
+        )
+        # ax.text(
+        #     cx + extent * 0.05 * dir_x,
+        #     cy + extent * 0.05 * dir_y,
+        #     f"{np.rad2deg(theta) % 360:.1f}°",
+        #     color=colors(i), fontsize=9,
+        #     bbox=dict(facecolor="white", alpha=0.7, pad=1),
+        # )
+
+    ax.set_title(f"Hexagonal axes — base {base}°")
+    ax.set_aspect("equal")
+    ax.axis("off")
+    plt.tight_layout()
+
+    if save:
+        os.makedirs("output", exist_ok=True)
+        out_path = Path("output") / f"{Path(image_path).stem}_hexagonal_axis.png"
+        fig.savefig(out_path, dpi=150, bbox_inches="tight")
+
+    return fig
