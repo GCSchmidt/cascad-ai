@@ -7,6 +7,7 @@ from cascadai.schema import token_piece
 
 
 CLASS_COLORS = {
+    token_piece.Token_Type.BLANK: "#aaaaaa",
     token_piece.Token_Type.BEAR: "#352c02",
     token_piece.Token_Type.FOX: "#ff7b00",  
     token_piece.Token_Type.HAWK: "#50a2e6",

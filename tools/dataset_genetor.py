@@ -277,7 +277,9 @@ def generate_dataset_sample(image_path: str, anno_path: str):
 
         if place_token:
 
-            token_type = random.choice(list(token_piece.Token_Type))
+            token_type = random.choice([
+                tt for tt in token_piece.Token_Type if tt.value >= 0
+            ])
             max_deviation = 10
             shift_x = random.randint(-max_deviation, max_deviation)
             shift_y = random.randint(-max_deviation, max_deviation)
@@ -307,7 +309,9 @@ def generate_dataset_sample(image_path: str, anno_path: str):
 
 def generate_dataset_yaml(tag: str = ""):
     yaml_path = FOR_MODEL_DIR / f"config{tag}.yml"
-    tokens_json = {tt.value: tt.name for tt in token_piece.Token_Type}
+    tokens_json = {
+        tt.value: tt.name for tt in token_piece.Token_Type if tt.value >= 0
+    }
 
     data = {
         "path": str(FOR_MODEL_DIR) ,

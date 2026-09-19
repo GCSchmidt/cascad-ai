@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class Token_Type(Enum):
+    BLANK = -1
     BEAR = 0
     ELK = 1
     SALMON = 2

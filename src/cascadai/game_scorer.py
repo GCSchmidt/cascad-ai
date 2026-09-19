@@ -22,28 +22,13 @@ class Score_Card(Enum):
     D = 3
 
 
-def detect_tokens(image_path):
-    model = YOLO(MODEL_PATH)
-    detections = token_detector.detect_tokens(model, image_path)
-    tokens = []
-    for detection in detections:
-        x1, y1, x2, y2, token_type, _ = detection
-        token_type = Token_Type(token_type)
-        x_center = x1 + (x2 - x1) / 2
-        y_center = y1 + (y2 - y1) / 2
-        width = ((x2 - x1) + (y2 - y1)) / 2 
-        t = Token(token_type, x_center, y_center, width)
-        tokens.append(t)
-    return tokens
-
-
 def find_all_tokens_of_type(EG: EnvironmentGraph, toke_type: Token_Type):
     """
     Find all nodes with a specific type.
 
     Returns a list of nodes
     """
-    nodes_of_type = [n for n, attrs in EG.EG.nodes(data=True) if attrs.get("type") == toke_type]
+    nodes_of_type = [n for n, attrs in EG.token_graph.nodes(data=True) if attrs.get("type") == toke_type]
     return nodes_of_type
 
 
@@ -58,7 +43,7 @@ def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
 
     # Build the induced subgraph on just those nodes
     # only edges between same-type nodes survive
-    subgraph = EG.EG.subgraph(nodes_of_type)
+    subgraph = EG.token_graph.subgraph(nodes_of_type)
 
     # Connected components of that subgraph = clusters
     clusters = list(nx.connected_components(subgraph))
@@ -332,7 +317,7 @@ def score_salmon_A(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.EG.subgraph(c)
+        cluster_graph = EG.token_graph.subgraph(c)
 
         # there is a salmon adjacent to the run
         if max(dict(cluster_graph.degree()).values()) > 2:
@@ -378,7 +363,7 @@ def score_salmon_B(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.EG.subgraph(c)
+        cluster_graph = EG.token_graph.subgraph(c)
 
         # there is a salmon adjacent to the run
         if max(dict(cluster_graph.degree()).values()) > 2:
@@ -421,7 +406,7 @@ def score_salmon_C(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.EG.subgraph(c)
+        cluster_graph = EG.token_graph.subgraph(c)
         max(dict(cluster_graph.degree()).values())
         _, run_length = prune_to_max_degree_2(cluster_graph)
 
@@ -457,7 +442,7 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.EG.subgraph(c)
+        cluster_graph = EG.token_graph.subgraph(c)
         # there is a salmon adjacent to the run
         if max(dict(cluster_graph.degree()).values()) > 2:
             continue
@@ -467,10 +452,13 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
         score += run_length
         adjacent_tokens = set()
         for salmon in cluster_graph:
-            neighbours = set(EG.EG.neighbors(salmon))
+            neighbours = set(EG.token_graph.neighbors(salmon))
             adjacent_tokens = (adjacent_tokens | neighbours)
 
         adjacent_tokens = adjacent_tokens - set(cluster_graph)
+        adjacent_tokens = {
+            t for t in adjacent_tokens if t.type != Token_Type.BLANK
+        }
         score += len(adjacent_tokens)
 
     return score
@@ -527,21 +515,15 @@ def score_hawks_B(EG: EnvironmentGraph) -> int:
         return 0
 
     score = 0
-    singles = 0
 
+    valid_hawks = set([])
     for c in clusters:
         group_size = len(c)
-        if group_size > 1:
-            continue
 
-        singles += 1
+        if group_size == 1:
+            valid_hawk = next(iter(c))
+            valid_hawks.add(valid_hawk)
 
-        if singles < 2:
-            score += 2
-        elif singles < 6:
-            score += 3
-        elif singles < 9:
-            score += 4
 
     return score
 
@@ -587,9 +569,11 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
     score = 0
 
     for fox in fox_nodes:
-        neighbours = EG.EG.neighbors(fox)
+        neighbours = EG.token_graph.neighbors(fox)
         n_types = np.array([0]*5)
         for neighbour in neighbours:
+            if neighbour.type == Token_Type.BLANK:
+                continue
             n_types[neighbour.type.value] = 1
         score += np.sum(n_types)
   
@@ -613,9 +597,11 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
     score = 0
 
     for fox in fox_nodes:
-        neighbours = EG.EG.neighbors(fox)
+        neighbours = EG.token_graph.neighbors(fox)
         n_types = np.array([0]*4)
         for neighbour in neighbours:
+            if neighbour.type == Token_Type.BLANK:
+                continue
             if neighbour.type == Token_Type.FOX:
                 continue
             n_types[neighbour.type.value] += 1
@@ -650,9 +636,11 @@ def score_foxes_C(EG: EnvironmentGraph) -> int:
     score = 0
 
     for fox in fox_nodes:
-        neighbours = EG.EG.neighbors(fox)
+        neighbours = EG.token_graph.neighbors(fox)
         n_types = np.array([0]*4)
         for neighbour in neighbours:
+            if neighbour.type == Token_Type.BLANK:
+                continue
             if neighbour.type == Token_Type.FOX:
                 continue
             n_types[neighbour.type.value] += 1
@@ -694,11 +682,13 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
         else:
             fox1, fox2 = cluster
             print("pair")
-            neighbours1 = set(EG.EG.neighbors(fox1))
-            neighbours2 = set(EG.EG.neighbors(fox2))
+            neighbours1 = set(EG.token_graph.neighbors(fox1))
+            neighbours2 = set(EG.token_graph.neighbors(fox2))
             neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
             n_types = np.array([0]*4)
             for neighbour in neighbours:
+                if neighbour.type == Token_Type.BLANK:
+                    continue
                 if neighbour.type == Token_Type.FOX:
                     continue
                 n_types[neighbour.type.value] += 1
@@ -762,6 +752,8 @@ def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Typ
                     return score_foxes_C(EG)
                 case Score_Card.D:
                     return score_foxes_D(EG)
+        case Token_Type.BLANK:
+            return 0
         case _:
             raise Exception("No Toke Type was given")
 
@@ -779,9 +771,12 @@ def main():
     parser.add_argument("-fx", "--fox", default="A", help="Fox scoring card")
     args = parser.parse_args()
 
-    tokens = detect_tokens(args.image)
+    model = YOLO(MODEL_PATH)
+    tokens = token_detector.detect_tokens(model, args.image)
     EG = EnvironmentGraph(tokens)
-    environment_graph_utils.plot_environment_graph_tokens(EG)
+    EG.build_ideal_lattice()
+    environment_graph_utils.plot_environment_graph_tokens(EG.token_graph)
+
     score_bear = score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
     score_elk = score_token_type(EG, Score_Card[args.elk], Token_Type.ELK)
     score_salmon = score_token_type(EG, Score_Card[args.salmon], Token_Type.SALMON)
