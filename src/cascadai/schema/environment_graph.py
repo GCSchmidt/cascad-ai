@@ -15,8 +15,12 @@ class EnvironmentGraph:
 
     def __init__(self, tokens: list[Token]) -> None:
         self.token_graph = nx.Graph()  # initially true postions of tokens in image, then ideal hex lattics 
-        self.primary_axis = 0  # base angle for hexagon lattice
+        self.primary_axis = 0  # base angle (degrees) for hexagon lattice
         self.build_graph(tokens)
+
+    @property
+    def latice_angles(self):
+        return np.arange(0, 6) * 60 + self.primary_axis
     
     def add_tokens(self, tokens) -> None:
         for i, t in enumerate(tokens):
@@ -27,10 +31,9 @@ class EnvironmentGraph:
         determines the maximum distance between tokens for them to be connected in graphs.
 
         Method 1: Distance = Fixed Factor * AVG Width of tokens 
-        Method 2: Distance = Fixed Factor * (minimum distance between detected tokens)
 
         Args:
-            tokens (_type_): _description_
+            tokens (list(Token)): list of Token objects
         """
         nodes = list(self.token_graph.nodes)
         widths = np.array([n.width for n in nodes])
@@ -60,15 +63,26 @@ class EnvironmentGraph:
         self.add_edges()
         self._hex_lattice_orientation_estimation()
 
+    def _get_angle_between_nodes(self, node1, node2) -> float:
+        """
+        Gets the angle between 2 tokens / nodes in the token graph.
+        The angle is relative to node1, and increases clockwise arounf it.
+
+        Returns:
+            float: degrees
+        """
+        x1, y1 = node1.x, node1.y
+        x2, y2 = node2.x, node2.y 
+        d_x, d_y = (x2 - x1), (y2 - y1)  # image coords, y increases downward
+        angle = math.degrees(np.arctan2(d_y, d_x))
+        return angle
+
     def _get_edge_angles(self) -> np.ndarray:
         angles = []
         for node in self.token_graph.nodes:
-            x1, y1 = node.x, node.y
             neighbours = neighbours = self.token_graph.neighbors(node)
             for neighbour in neighbours:
-                x2, y2 = neighbour.x, neighbour.y 
-                d_x, d_y = (x2 - x1), (y2 - y1)
-                angle = math.degrees(np.arctan2(d_y, d_x))
+                angle = self._get_angle_between_nodes(node, neighbour)
                 angles.append(angle)
         return np.array(angles)
 
@@ -91,6 +105,50 @@ class EnvironmentGraph:
             if score < best_score:
                 best_score = score
                 self.primary_axis = theta
+
+    def add_missing_neighbours(self, node):
+        n_neigbours = self.token_graph.degree[node]
+        if MAX_NEIGHBOURS == n_neigbours:
+            return
+
+        neighbours = self.token_graph.neighbors(node)
+
+        neighbour_angles = [
+            self._get_angle_between_nodes(node, neighbour) for neighbour in neighbours
+        ]
+
+        def angle_difference(a, b):
+            return abs((a - b + 180) % 360 - 180)
+
+        occupied_angles = np.zeros(n_neigbours, dtype=int)
+
+        for i, angle1 in enumerate(neighbour_angles):
+            d = [
+                angle_difference(angle1, angle2) for angle2 in self.latice_angles
+                ]
+
+            occupied_angles[i] = np.argmin(d)
+
+        mask = np.ones(len(self.latice_angles), dtype=bool)
+        mask[occupied_angles] = False
+
+        free_angles = self.latice_angles[mask]
+        print("latice angles ", self.latice_angles)
+        print("neighbour angles", neighbour_angles)
+        print("free angles", free_angles)
+
+        width = node.width
+
+        for angle in free_angles:
+            angle_radians = np.deg2rad(angle)
+            edge_length = width * (DISTANCE_FACTOR - 0.75)
+            d_x = np.cos(angle_radians) * edge_length
+            d_y = np.sin(angle_radians) * edge_length
+            x_new = d_x + node.x
+            y_new = d_y + node.y
+            blank_token = Token(Token_Type.BLANK, x_new, y_new, node.width)
+            self.token_graph.add_node(blank_token, type=blank_token.type, x=blank_token.x, y=blank_token.y, width=blank_token.width)
+            self.token_graph.add_edge(node, blank_token, weight=edge_length) 
 
     def build_ideal_lattice(self):
         """Snap the token graph onto a perfect unit hexagonal lattice.
