@@ -11,6 +11,10 @@ MAX_NEIGHBOURS = 6
 DISTANCE_FACTOR = 2.5
 
 
+def angle_difference(a, b):
+    return abs((a - b + 180) % 360 - 180)
+
+
 class EnvironmentGraph:
 
     def __init__(self, tokens: list[Token]) -> None:
@@ -87,24 +91,22 @@ class EnvironmentGraph:
         return np.array(angles)
 
     def _hex_lattice_orientation_estimation(self):
-        best_score = math.inf
         angles = self._get_edge_angles()
-        angles.sort()
-        angle_min, angle_max = -30, 30
-        candidates = np.arange(angle_min, angle_max)
+        if angles.size == 0:
+            return
 
-        for theta in candidates:
-            d1 = abs(angles - theta)
-            d2 = abs(angles - (theta-60))
-            d3 = abs(angles - (theta+60))
-            d4 = abs(angles - (theta-120))
-            d5 = abs(angles - (theta+120))
-            d6 = abs(angles - (theta+180))
-            d7 = abs(angles - (theta-180))
-            score = np.sum(d1) + np.sum(d2) + np.sum(d3) + np.sum(d4) + np.sum(d5) + np.sum(d6) + np.sum(d7)
+        directions = np.array([0.0, 60.0, 120.0, 180.0, 240.0, 300.0])
+        best_theta = None
+        best_score = math.inf
+
+        for theta in np.arange(-30, 30):
+            diffs = angle_difference(angles[:, None], theta + directions[None, :])
+            score = np.sum(np.min(diffs, axis=1))
             if score < best_score:
                 best_score = score
-                self.primary_axis = theta
+                best_theta = theta
+
+        self.primary_axis = best_theta
 
     def add_missing_neighbours(self, node):
         n_neigbours = self.token_graph.degree[node]
@@ -116,9 +118,6 @@ class EnvironmentGraph:
         neighbour_angles = [
             self._get_angle_between_nodes(node, neighbour) for neighbour in neighbours
         ]
-
-        def angle_difference(a, b):
-            return abs((a - b + 180) % 360 - 180)
 
         occupied_angles = np.zeros(n_neigbours, dtype=int)
 
@@ -133,9 +132,9 @@ class EnvironmentGraph:
         mask[occupied_angles] = False
 
         free_angles = self.latice_angles[mask]
-        print("latice angles ", self.latice_angles)
-        print("neighbour angles", neighbour_angles)
-        print("free angles", free_angles)
+
+        #  There might be an unconnected node at the free angle
+        # check that angle for a node and add edge between them
 
         width = node.width
 
@@ -148,7 +147,7 @@ class EnvironmentGraph:
             y_new = d_y + node.y
             blank_token = Token(Token_Type.BLANK, x_new, y_new, node.width)
             self.token_graph.add_node(blank_token, type=blank_token.type, x=blank_token.x, y=blank_token.y, width=blank_token.width)
-            self.token_graph.add_edge(node, blank_token, weight=edge_length) 
+            # self.token_graph.add_edge(node, blank_token, weight=edge_length) 
 
     def build_ideal_lattice(self):
         """Snap the token graph onto a perfect unit hexagonal lattice.
