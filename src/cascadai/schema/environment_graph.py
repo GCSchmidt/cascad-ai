@@ -66,6 +66,19 @@ class EnvironmentGraph:
         self.add_tokens(tokens)
         self.add_edges()
         self._hex_lattice_orientation_estimation()
+        self.fill_token_graph()
+
+    def fill_token_graph(self):
+        # loop until all real tokens have 6 neighbours, and graph is fully connected
+        while True:
+            for n in list(self.token_graph.nodes()):
+                # after the 1st loop all real tokens will have 6 neighbours
+                if self.token_graph.degree[n] < 6:
+                    self.add_missing_neighbours(n)
+                    self.token_graph.clear_edges()
+                    self.add_edges()
+            if nx.is_connected(self.token_graph):
+                break
 
     def _get_angle_between_nodes(self, node1, node2) -> float:
         """
