@@ -6,6 +6,7 @@ import cv2
 from pathlib import Path
 from ultralytics import YOLO
 from enum import Enum
+from itertools import combinations
 
 from cascadai.utils import token_detector
 from cascadai.schema.token_piece import Token_Type, Token
@@ -658,44 +659,64 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
+    score = 0
+
+    def score_fox_pair(fox1, fox2) -> int:
+        if not EG.token_graph.has_edge(fox1, fox2):
+            return 0
+
+        pair_score = 0
+        neighbours1 = set(EG.token_graph.neighbors(fox1))
+        neighbours2 = set(EG.token_graph.neighbors(fox2))
+        neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
+        n_types = np.array([0]*4)
+        for neighbour in neighbours:
+            if neighbour.type == Token_Type.BLANK:
+                continue
+            if neighbour.type == Token_Type.FOX:
+                continue
+            n_types[neighbour.type.value] += 1
+        n_pairs = (n_types >= 2).sum()
+        if n_pairs:
+            pair_score += n_pairs * 2 + 3
+
+        return pair_score
+
+    def find_optimal_score(pair_scores: dict) -> int:
+        score_graph = nx.Graph()
+
+        for (a, b), score in pair_scores.items():
+            score_graph.add_edge(a, b, weight=score)
+
+        matching = nx.max_weight_matching(score_graph, maxcardinality=False)
+        max_score = sum(score_graph[u][v]["weight"] for u, v in matching)
+
+        return max_score
+
     clusters = find_clusters(EG, Token_Type.FOX)
 
     if len(clusters) == 0:
         return 0
 
-    score = 0
-
     for cluster in clusters:
-        n_pairs = 0
         if len(cluster) < 2:
             # single fox, no points
             continue
         elif len(cluster) > 2:
-            # Todo
-            # when a cluster has 3 or more foxes
-            # for each fox
-            # check if it has a neighbour fox
-            # if yes try and score, save score for pair
-            # after establishing the scores for all possible pairs
-            # keep the best pairs of foxes for maximum points
-            pass
+            # TODO
+            possible_fox_pairs = set(combinations(range(len(cluster)), 2))
+            score_per_pair = dict()
+            for fox_pair in possible_fox_pairs:
+                cluster = list(cluster)
+                id1, id2 = fox_pair[0], fox_pair[1]
+                fox1, fox2 = cluster[id1], cluster[id2]
+                if EG.token_graph.has_edge(fox1, fox2):
+                    score_per_pair[fox_pair] = score_fox_pair(fox1, fox2)
+                    
+            score += find_optimal_score(score_per_pair)
         else:
             fox1, fox2 = cluster
-            print("pair")
-            neighbours1 = set(EG.token_graph.neighbors(fox1))
-            neighbours2 = set(EG.token_graph.neighbors(fox2))
-            neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
-            n_types = np.array([0]*4)
-            for neighbour in neighbours:
-                if neighbour.type == Token_Type.BLANK:
-                    continue
-                if neighbour.type == Token_Type.FOX:
-                    continue
-                n_types[neighbour.type.value] += 1
-            n_pairs = (n_types >= 2).sum()
-
-        if n_pairs:
-            score += n_pairs * 2 + 3
+            score += score_fox_pair(fox1, fox2)
 
     return score
 
@@ -774,7 +795,7 @@ def main():
     model = YOLO(MODEL_PATH)
     tokens = token_detector.detect_tokens(model, args.image)
     EG = EnvironmentGraph(tokens)
-    EG.build_ideal_lattice()
+    # EG.build_ideal_lattice()
     environment_graph_utils.plot_environment_graph_tokens(EG.token_graph)
 
     score_bear = score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
