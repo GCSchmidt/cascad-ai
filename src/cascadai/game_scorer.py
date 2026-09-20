@@ -536,13 +536,13 @@ def score_hawks_B(env_graph: EnvironmentGraph) -> int:
 
     scored_hawks = set()
 
-    for id1, hawk1 in enumerate(valid_hawks):
+    for hawk1 in valid_hawks:
         if hawk1 in scored_hawks:
             # Hawk already part of line of sight
             continue
 
         # check all other valid hawks
-        for id2, hawk2 in enumerate(valid_hawks.difference([hawk1])):
+        for hawk2 in valid_hawks.difference([hawk1]):
 
             if not env_graph.token_in_line_of_sight(hawk1, hawk2):
                 # angle does not agree with line of sight/latice_angles
@@ -592,16 +592,62 @@ def score_hawks_B(env_graph: EnvironmentGraph) -> int:
     return score
 
 
-def score_hawks_C(graph: nx.Graph) -> int:
-    """_summary_
-    TODO
+def score_hawks_C(env_graph: EnvironmentGraph) -> int:
+    """Score 3 poitns for each line of sight between hawks.
+    Hawks may not touch other hawks.
+
     Args:
         EG (EnvironmentGraph): _description_
 
     Returns:
-        int: _description_
+        int: score for hawk tokens
     """
-    return 0
+    clusters = find_clusters(env_graph.token_graph, Token_Type.HAWK)
+
+    if len(clusters) == 0:
+        return 0
+
+    score = 0
+
+    valid_hawks = set()  # hawks not touching others
+    for c in clusters:
+        group_size = len(c)
+
+        if group_size == 1:
+            valid_hawk = next(iter(c))
+            valid_hawks.add(valid_hawk)
+
+    if len(valid_hawks) <= 1:
+        return 0
+
+    possible_hawk_pairs = set(combinations(valid_hawks, 2))
+    n_line_of_sights = 0
+
+    for hawk_pair in possible_hawk_pairs:
+        hawk1, hawk2 = hawk_pair
+        if not env_graph.token_in_line_of_sight(hawk1, hawk2):
+            # angle does not agree with line of sight/latice_angles
+            continue
+        try:
+            shortest_path = nx.shortest_path(env_graph.token_graph, hawk1, hawk2)[1:-1]  # nodes between source and end
+        except nx.NetworkXNoPath:
+            continue
+            
+        valid_path = True
+
+        for n in shortest_path:
+            if n.type == Token_Type.HAWK:
+                valid_path = False
+                break
+
+        if not valid_path:
+            continue
+
+        n_line_of_sights += 1
+
+    score = n_line_of_sights * 3
+
+    return score
 
 
 def score_hawks_D(graph: nx.Graph) -> int:
@@ -822,7 +868,7 @@ def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: To
                 case Score_Card.B:
                     return score_hawks_B(env_graph)
                 case Score_Card.C:
-                    return score_hawks_C(env_graph.token_graph)
+                    return score_hawks_C(env_graph)
                 case Score_Card.D:
                     return score_hawks_D(env_graph.token_graph)
         case Token_Type.FOX:
