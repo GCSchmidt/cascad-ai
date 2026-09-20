@@ -94,4 +94,5 @@ datasets/building_blocks
 datasets/for_model
 datasets/single_piece_masks
 datasets/real_games
+datasets/score_tests
 output/
