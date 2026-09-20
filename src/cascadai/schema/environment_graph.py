@@ -8,7 +8,7 @@ from cascadai.schema.token_piece import Token_Type, Token
 
 
 MAX_NEIGHBOURS = 6
-DISTANCE_FACTOR = 2.5
+DISTANCE_FACTOR = 2.25
 
 
 def angle_difference(a, b):
