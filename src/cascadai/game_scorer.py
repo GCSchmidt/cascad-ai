@@ -23,28 +23,28 @@ class Score_Card(Enum):
     D = 3
 
 
-def find_all_tokens_of_type(EG: EnvironmentGraph, toke_type: Token_Type):
+def find_all_tokens_of_type(graph: nx.Graph, toke_type: Token_Type):
     """
     Find all nodes with a specific type.
 
     Returns a list of nodes
     """
-    nodes_of_type = [n for n, attrs in EG.token_graph.nodes(data=True) if attrs.get("type") == toke_type]
+    nodes_of_type = [n for n, attrs in graph.nodes(data=True) if attrs.get("type") == toke_type]
     return nodes_of_type
 
 
-def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
+def find_clusters(graph: nx.Graph, toke_type: Token_Type):
     """
     Find all clusters (connected components) of nodes with a specific type.
 
     Returns a list of clusters, where each cluster is a set of node ids,
     sorted by size (largest first).
     """
-    nodes_of_type = find_all_tokens_of_type(EG, toke_type)
+    nodes_of_type = find_all_tokens_of_type(graph, toke_type)
 
     # Build the induced subgraph on just those nodes
     # only edges between same-type nodes survive
-    subgraph = EG.token_graph.subgraph(nodes_of_type)
+    subgraph = graph.subgraph(nodes_of_type)
 
     # Connected components of that subgraph = clusters
     clusters = list(nx.connected_components(subgraph))
@@ -54,6 +54,11 @@ def find_clusters(EG: EnvironmentGraph, toke_type: Token_Type):
 
     return clusters
 
+
+def get_line_of_sight(EG: EnvironmentGraph, node1, node2) -> bool:
+    line_of_sight = nx.shortest_path(EG.token_graph, node1, node2)
+
+    return True
 
 def prune_to_max_degree_2(subgraph: nx.Graph):
     """
@@ -78,7 +83,7 @@ def prune_to_max_degree_2(subgraph: nx.Graph):
     return remaining_nodes, len(remaining_nodes)
 
 
-def score_bears_A(EG: EnvironmentGraph) -> int:
+def score_bears_A(graph: nx.Graph) -> int:
     """
     Mating pair scoring. Score for number of pairs of Bears with no other bears next to them.
 
@@ -88,7 +93,7 @@ def score_bears_A(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.BEAR)
+    clusters = find_clusters(graph, Token_Type.BEAR)
 
     if len(clusters) == 0:
         return 0
@@ -115,7 +120,7 @@ def score_bears_A(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_bears_B(EG: EnvironmentGraph) -> int:
+def score_bears_B(graph: nx.Graph) -> int:
     """
     Mother and Cubs scoring. Score per group of 3 Bears with no other bears next to it.
 
@@ -125,7 +130,7 @@ def score_bears_B(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.BEAR)
+    clusters = find_clusters(graph, Token_Type.BEAR)
 
     if len(clusters) == 0:
         return 0
@@ -139,7 +144,7 @@ def score_bears_B(EG: EnvironmentGraph) -> int:
     return n_mom_and_cubs * 10
 
 
-def score_bears_C(EG: EnvironmentGraph) -> int:
+def score_bears_C(graph: nx.Graph) -> int:
     """
     Family scoring. Score per group of with no other bears next to it.
 
@@ -149,7 +154,7 @@ def score_bears_C(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.BEAR)
+    clusters = find_clusters(graph, Token_Type.BEAR)
 
     if len(clusters) == 0:
         return 0
@@ -179,7 +184,7 @@ def score_bears_C(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_bears_D(EG: EnvironmentGraph) -> int:
+def score_bears_D(graph: nx.Graph) -> int:
     """
     Big Group scoring. Score per group of with no other bears next to it.
 
@@ -189,7 +194,7 @@ def score_bears_D(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.BEAR)
+    clusters = find_clusters(graph, Token_Type.BEAR)
 
     if len(clusters) == 0:
         return 0
@@ -209,7 +214,7 @@ def score_bears_D(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_elk_A(EG: EnvironmentGraph) -> int:
+def score_elk_A(graph: nx.Graph) -> int:
     """_summary_
     TODO
     Args:
@@ -219,7 +224,7 @@ def score_elk_A(EG: EnvironmentGraph) -> int:
         int: _description_
     """
 
-    clusters = find_clusters(EG, Token_Type.ELK)
+    clusters = find_clusters(graph, Token_Type.ELK)
 
     if len(clusters) == 0:
         return 0
@@ -238,13 +243,13 @@ def score_elk_A(EG: EnvironmentGraph) -> int:
                 if straight:
                     score += 9
                 else:
-                    score += 9
+                    score += 7
             case 4:
                 score += 13
     return score
 
 
-def score_elk_B(EG: EnvironmentGraph) -> int:
+def score_elk_B(graph: nx.Graph) -> int:
     """_summary_
     TODO
     Args:
@@ -256,8 +261,8 @@ def score_elk_B(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_elk_C(EG: EnvironmentGraph) -> int:
-    clusters = find_clusters(EG, Token_Type.ELK)
+def score_elk_C(graph: nx.Graph) -> int:
+    clusters = find_clusters(graph, Token_Type.ELK)
 
     if len(clusters) == 0:
         return 0
@@ -287,7 +292,7 @@ def score_elk_C(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_elk_D(EG: EnvironmentGraph) -> int:
+def score_elk_D(graph: nx.Graph) -> int:
     """_summary_
     TODO
     Args:
@@ -299,7 +304,7 @@ def score_elk_D(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_salmon_A(EG: EnvironmentGraph) -> int:
+def score_salmon_A(graph: nx.Graph) -> int:
     """
     Score for each salmon in a salmon run. 
     A solmon that touches more than 2 other may not be included in the salmon run.
@@ -310,7 +315,7 @@ def score_salmon_A(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.SALMON)
+    clusters = find_clusters(graph, Token_Type.SALMON)
 
     if len(clusters) == 0:
         return 0
@@ -318,7 +323,7 @@ def score_salmon_A(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.token_graph.subgraph(c)
+        cluster_graph = graph.subgraph(c)
 
         # there is a salmon adjacent to the run
         if max(dict(cluster_graph.degree()).values()) > 2:
@@ -345,7 +350,7 @@ def score_salmon_A(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_salmon_B(EG: EnvironmentGraph) -> int:
+def score_salmon_B(graph: nx.Graph) -> int:
     """
     Score for each salmon in a salmon run. 
     A solmon that touches more than 2 other may not be included in the salmon run.
@@ -356,7 +361,7 @@ def score_salmon_B(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.SALMON)
+    clusters = find_clusters(graph, Token_Type.SALMON)
 
     if len(clusters) == 0:
         return 0
@@ -364,7 +369,7 @@ def score_salmon_B(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.token_graph.subgraph(c)
+        cluster_graph = graph.subgraph(c)
 
         # there is a salmon adjacent to the run
         if max(dict(cluster_graph.degree()).values()) > 2:
@@ -387,7 +392,7 @@ def score_salmon_B(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_salmon_C(EG: EnvironmentGraph) -> int:
+def score_salmon_C(graph: nx.Graph) -> int:
     """
     Score for each salmon in a salmon run. 
     A solmon that touches more than 2 other may not be included in the salmon run.
@@ -399,7 +404,7 @@ def score_salmon_C(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.SALMON)
+    clusters = find_clusters(graph, Token_Type.SALMON)
 
     if len(clusters) == 0:
         return 0
@@ -407,7 +412,7 @@ def score_salmon_C(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.token_graph.subgraph(c)
+        cluster_graph = graph.subgraph(c)
         max(dict(cluster_graph.degree()).values())
         _, run_length = prune_to_max_degree_2(cluster_graph)
 
@@ -425,7 +430,7 @@ def score_salmon_C(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_salmon_D(EG: EnvironmentGraph) -> int:
+def score_salmon_D(graph: nx.Graph) -> int:
     """
     Score for each salmon in a salmon run and adjacent animal tokens. 
     A solmon that touches more than 2 other may not be included in the salmon run.
@@ -435,7 +440,7 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    clusters = find_clusters(EG, Token_Type.SALMON)
+    clusters = find_clusters(graph, Token_Type.SALMON)
 
     if len(clusters) == 0:
         return 0
@@ -443,7 +448,7 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
     score = 0
 
     for c in clusters: 
-        cluster_graph = EG.token_graph.subgraph(c)
+        cluster_graph = graph.subgraph(c)
         # there is a salmon adjacent to the run
         if max(dict(cluster_graph.degree()).values()) > 2:
             continue
@@ -453,7 +458,7 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
         score += run_length
         adjacent_tokens = set()
         for salmon in cluster_graph:
-            neighbours = set(EG.token_graph.neighbors(salmon))
+            neighbours = set(graph.neighbors(salmon))
             adjacent_tokens = (adjacent_tokens | neighbours)
 
         adjacent_tokens = adjacent_tokens - set(cluster_graph)
@@ -465,7 +470,7 @@ def score_salmon_D(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_hawks_A(EG: EnvironmentGraph) -> int:
+def score_hawks_A(graph: nx.Graph) -> int:
     """Scores for each single hawk, which is not touching another.
 
     Args:
@@ -475,7 +480,7 @@ def score_hawks_A(EG: EnvironmentGraph) -> int:
         int: _description_
     """
 
-    clusters = find_clusters(EG, Token_Type.HAWK)
+    clusters = find_clusters(graph, Token_Type.HAWK)
 
     if len(clusters) == 0:
         return 0
@@ -500,9 +505,10 @@ def score_hawks_A(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_hawks_B(EG: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+def score_hawks_B(env_graph: EnvironmentGraph) -> int:
+    """
+    Score points from each hawk that has at least one other hawk in its line of sight. 
+    Hawks may not touch other hawks. 
     Args:
         EG (EnvironmentGraph): _description_
 
@@ -510,14 +516,14 @@ def score_hawks_B(EG: EnvironmentGraph) -> int:
         int: _description_
     """
 
-    clusters = find_clusters(EG, Token_Type.HAWK)
+    clusters = find_clusters(env_graph.token_graph, Token_Type.HAWK)
 
     if len(clusters) == 0:
         return 0
 
     score = 0
 
-    valid_hawks = set([])
+    valid_hawks = set()  # hawks not touching others
     for c in clusters:
         group_size = len(c)
 
@@ -525,11 +531,68 @@ def score_hawks_B(EG: EnvironmentGraph) -> int:
             valid_hawk = next(iter(c))
             valid_hawks.add(valid_hawk)
 
+    if len(valid_hawks) <= 1:
+        return 0
+
+    scored_hawks = set()
+
+    for id1, hawk1 in enumerate(valid_hawks):
+        if hawk1 in scored_hawks:
+            # Hawk already part of line of sight
+            continue
+
+        # check all other valid hawks
+        for id2, hawk2 in enumerate(valid_hawks.difference([hawk1])):
+
+            if not env_graph.token_in_line_of_sight(hawk1, hawk2):
+                # angle does not agree with line of sight/latice_angles
+                continue
+
+            try:
+                shortest_path = nx.shortest_path(env_graph.token_graph, hawk1, hawk2)[1:-1]  # nodes between source and end
+            except nx.NetworkXNoPath:
+                continue
+            
+            valid_path = True
+
+            for n in shortest_path:
+                if n.type == Token_Type.HAWK:
+                    valid_path = False
+                    break
+
+            if not valid_path:
+                break
+
+            scored_hawks.add(hawk1)
+            scored_hawks.add(hawk2)
+            break
+
+    n_scoring_hawks = len(scored_hawks)
+
+    match n_scoring_hawks:
+        case 0:
+            return 0
+        case 2:
+            score += 5
+        case 3:
+            score += 9
+        case 4:
+            score += 12
+        case 5:
+            score += 16
+        case 6:
+            score += 20
+        case 7:
+            score += 24
+        case 8:
+            score += 29
+        case _:
+            score += 29
 
     return score
 
 
-def score_hawks_C(EG: EnvironmentGraph) -> int:
+def score_hawks_C(graph: nx.Graph) -> int:
     """_summary_
     TODO
     Args:
@@ -541,7 +604,7 @@ def score_hawks_C(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_hawks_D(EG: EnvironmentGraph) -> int:
+def score_hawks_D(graph: nx.Graph) -> int:
     """_summary_
     TODO
     Args:
@@ -553,7 +616,7 @@ def score_hawks_D(EG: EnvironmentGraph) -> int:
     return 0
 
 
-def score_foxes_A(EG: EnvironmentGraph) -> int:
+def score_foxes_A(graph: nx.Graph) -> int:
     """
     Score for each unique animal type around a fox.
     Args:
@@ -562,7 +625,7 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
+    fox_nodes = find_all_tokens_of_type(graph, Token_Type.FOX)
 
     if len(fox_nodes) == 0:
         return 0
@@ -570,7 +633,7 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
     score = 0
 
     for fox in fox_nodes:
-        neighbours = EG.token_graph.neighbors(fox)
+        neighbours = graph.neighbors(fox)
         n_types = np.array([0]*5)
         for neighbour in neighbours:
             if neighbour.type == Token_Type.BLANK:
@@ -581,7 +644,7 @@ def score_foxes_A(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_foxes_B(EG: EnvironmentGraph) -> int:
+def score_foxes_B(graph: nx.Graph) -> int:
     """
     Score for each unique animal type pair around a fox.
     Args:
@@ -590,7 +653,7 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
+    fox_nodes = find_all_tokens_of_type(graph, Token_Type.FOX)
 
     if len(fox_nodes) == 0:
         return 0
@@ -598,7 +661,7 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
     score = 0
 
     for fox in fox_nodes:
-        neighbours = EG.token_graph.neighbors(fox)
+        neighbours = graph.neighbors(fox)
         n_types = np.array([0]*4)
         for neighbour in neighbours:
             if neighbour.type == Token_Type.BLANK:
@@ -620,7 +683,7 @@ def score_foxes_B(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_foxes_C(EG: EnvironmentGraph) -> int:
+def score_foxes_C(graph: nx.Graph) -> int:
     """
     Score for the most frequent animal type around a fox.
     Args:
@@ -629,7 +692,7 @@ def score_foxes_C(EG: EnvironmentGraph) -> int:
     Returns:
         int: score
     """
-    fox_nodes = find_all_tokens_of_type(EG, Token_Type.FOX)
+    fox_nodes = find_all_tokens_of_type(graph, Token_Type.FOX)
 
     if len(fox_nodes) == 0:
         return 0
@@ -637,7 +700,7 @@ def score_foxes_C(EG: EnvironmentGraph) -> int:
     score = 0
 
     for fox in fox_nodes:
-        neighbours = EG.token_graph.neighbors(fox)
+        neighbours = graph.neighbors(fox)
         n_types = np.array([0]*4)
         for neighbour in neighbours:
             if neighbour.type == Token_Type.BLANK:
@@ -650,7 +713,7 @@ def score_foxes_C(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_foxes_D(EG: EnvironmentGraph) -> int:
+def score_foxes_D(graph: nx.Graph) -> int:
     """
     Score for each unique animal type pair around a pair of foxes.
     Args:
@@ -662,12 +725,12 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
     score = 0
 
     def score_fox_pair(fox1, fox2) -> int:
-        if not EG.token_graph.has_edge(fox1, fox2):
+        if not graph.has_edge(fox1, fox2):
             return 0
 
         pair_score = 0
-        neighbours1 = set(EG.token_graph.neighbors(fox1))
-        neighbours2 = set(EG.token_graph.neighbors(fox2))
+        neighbours1 = set(graph.neighbors(fox1))
+        neighbours2 = set(graph.neighbors(fox2))
         neighbours = (neighbours1 | neighbours2) - {fox1, fox2}
         n_types = np.array([0]*4)
         for neighbour in neighbours:
@@ -693,7 +756,7 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
 
         return max_score
 
-    clusters = find_clusters(EG, Token_Type.FOX)
+    clusters = find_clusters(graph, Token_Type.FOX)
 
     if len(clusters) == 0:
         return 0
@@ -703,16 +766,15 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
             # single fox, no points
             continue
         elif len(cluster) > 2:
-            # TODO
             possible_fox_pairs = set(combinations(range(len(cluster)), 2))
             score_per_pair = dict()
             for fox_pair in possible_fox_pairs:
                 cluster = list(cluster)
                 id1, id2 = fox_pair[0], fox_pair[1]
                 fox1, fox2 = cluster[id1], cluster[id2]
-                if EG.token_graph.has_edge(fox1, fox2):
+                if graph.has_edge(fox1, fox2):
                     score_per_pair[fox_pair] = score_fox_pair(fox1, fox2)
-                    
+
             score += find_optimal_score(score_per_pair)
         else:
             fox1, fox2 = cluster
@@ -721,58 +783,58 @@ def score_foxes_D(EG: EnvironmentGraph) -> int:
     return score
 
 
-def score_token_type(EG: EnvironmentGraph, SC: Score_Card, token_type: Token_Type) -> int:
+def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: Token_Type) -> int:
     match token_type:
         case Token_Type.BEAR:
             match SC:
                 case Score_Card.A:
-                    return score_bears_A(EG)
+                    return score_bears_A(env_graph.token_graph)
                 case Score_Card.B:
-                    return score_bears_B(EG)
+                    return score_bears_B(env_graph.token_graph)
                 case Score_Card.C:
-                    return score_bears_C(EG)
+                    return score_bears_C(env_graph.token_graph)
                 case Score_Card.D:
-                    return score_bears_D(EG)
+                    return score_bears_D(env_graph.token_graph)
         case Token_Type.ELK:
             match SC:
                 case Score_Card.A:
-                    return score_elk_A(EG)
+                    return score_elk_A(env_graph.token_graph)
                 case Score_Card.B:
-                    return score_elk_B(EG)
+                    return score_elk_B(env_graph.token_graph)
                 case Score_Card.C:
-                    return score_elk_C(EG)
+                    return score_elk_C(env_graph.token_graph)
                 case Score_Card.D:
-                    return score_elk_D(EG)               
+                    return score_elk_D(env_graph.token_graph)               
         case Token_Type.SALMON:
             match SC:
                 case Score_Card.A:
-                    return score_salmon_A(EG)
+                    return score_salmon_A(env_graph.token_graph)
                 case Score_Card.B:
-                    return score_salmon_B(EG)
+                    return score_salmon_B(env_graph.token_graph)
                 case Score_Card.C:
-                    return score_salmon_C(EG)
+                    return score_salmon_C(env_graph.token_graph)
                 case Score_Card.D:
-                    return score_salmon_D(EG)
+                    return score_salmon_D(env_graph.token_graph)
         case Token_Type.HAWK:
             match SC:
                 case Score_Card.A:
-                    return score_hawks_A(EG)
+                    return score_hawks_A(env_graph.token_graph)
                 case Score_Card.B:
-                    return score_hawks_B(EG)
+                    return score_hawks_B(env_graph)
                 case Score_Card.C:
-                    return score_hawks_C(EG)
+                    return score_hawks_C(env_graph.token_graph)
                 case Score_Card.D:
-                    return score_hawks_D(EG)
+                    return score_hawks_D(env_graph.token_graph)
         case Token_Type.FOX:
             match SC:
                 case Score_Card.A:
-                    return score_foxes_A(EG)
+                    return score_foxes_A(env_graph.token_graph)
                 case Score_Card.B:
-                    return score_foxes_B(EG)
+                    return score_foxes_B(env_graph.token_graph)
                 case Score_Card.C:
-                    return score_foxes_C(EG)
+                    return score_foxes_C(env_graph.token_graph)
                 case Score_Card.D:
-                    return score_foxes_D(EG)
+                    return score_foxes_D(env_graph.token_graph)
         case Token_Type.BLANK:
             return 0
         case _:
@@ -795,7 +857,7 @@ def main():
     model = YOLO(MODEL_PATH)
     tokens = token_detector.detect_tokens(model, args.image)
     EG = EnvironmentGraph(tokens)
-    # EG.build_ideal_lattice()
+    EG.build_ideal_lattice()
     environment_graph_utils.plot_environment_graph_tokens(EG.token_graph)
 
     score_bear = score_token_type(EG, Score_Card[args.bear], Token_Type.BEAR)
