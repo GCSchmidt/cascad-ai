@@ -66,7 +66,7 @@ The script prints a score line per animal and the total, for example `Score for 
 
 Notes:
 - The `-o/--output` flag is currently unused by the script; the environment-graph plot always saves to `output/`.
-- Scoring depends on the trained YOLO token detector. Some score-card functions (e.g. Elk A/B/D, Hawks B/C/D) are still placeholders that return `0`, so results for those entries are not yet complete.
+- Scoring depends on the trained YOLO token detector. Some score-card functions (e.g. Elk A/B/D, Hawks D) are still placeholders that return `0`, so results for those entries are not yet complete.
 
 # The Website
 
