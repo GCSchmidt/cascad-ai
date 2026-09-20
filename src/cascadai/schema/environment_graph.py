@@ -25,7 +25,7 @@ class EnvironmentGraph:
     @property
     def latice_angles(self):
         return np.arange(0, 6) * 60 + self.primary_axis
-    
+
     def add_tokens(self, tokens) -> None:
         for i, t in enumerate(tokens):
             self.token_graph.add_node(t, type=t.type, x=t.x, y=t.y, width=t.width)
@@ -83,7 +83,7 @@ class EnvironmentGraph:
     def _get_angle_between_nodes(self, node1, node2) -> float:
         """
         Gets the angle between 2 tokens / nodes in the token graph.
-        The angle is relative to node1, and increases clockwise arounf it.
+        The angle is relative to node1.
 
         Returns:
             float: degrees
@@ -93,6 +93,27 @@ class EnvironmentGraph:
         d_x, d_y = (x2 - x1), (y2 - y1)  # image coords, y increases downward
         angle = math.degrees(np.arctan2(d_y, d_x))
         return angle
+
+    def token_in_line_of_sight(self, node1, node2) -> bool:
+        """_summary_
+
+        Args:
+            node1 (_type_): _description_
+            node2 (_type_): _description_
+
+        Returns:
+            bool: _description_
+        """
+        angle = int(self._get_angle_between_nodes(node1, node2))
+
+        diffs = angle_difference(self.latice_angles, angle)
+
+        diff_min = np.min(diffs)
+
+        if diff_min < 5:
+            return True
+
+        return False
 
     def _get_edge_angles(self) -> np.ndarray:
         angles = []
