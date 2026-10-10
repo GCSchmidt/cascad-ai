@@ -83,6 +83,28 @@ def prune_to_max_degree_2(subgraph: nx.Graph):
     return remaining_nodes, len(remaining_nodes)
 
 
+def score_elk_in_line(n_elk: int) -> int:
+    """
+    Helper function for elk score card A
+
+    Args:
+        n_elk (int): number of elks in a straight line
+
+    Returns:
+        int: score for elks in straight line
+    """
+    score = (n_elk // 2) * 13
+    rest = n_elk % 4
+    match rest:
+        case 1:
+            score += 2
+        case 2:
+            score += 5
+        case 3:
+            score += 9
+    return score
+
+
 def score_bears_A(graph: nx.Graph) -> int:
     """
     Mating pair scoring. Score for number of pairs of Bears with no other bears next to them.
@@ -113,7 +135,7 @@ def score_bears_A(graph: nx.Graph) -> int:
             return 11
         case 3:
             return 19
-        case _: 
+        case _:
             # >= 4 
             return 27
 
@@ -238,14 +260,9 @@ def score_elk_A(graph: nx.Graph) -> int:
                 score += 2
             case 2:
                 score += 5
-            case 3:
-                straight = False
-                if straight:
-                    score += 9
-                else:
-                    score += 7
-            case 4:
-                score += 13
+            case _:
+                # for each of the 3 directions
+                # break cluster into subgrapg 
     return score
 
 
