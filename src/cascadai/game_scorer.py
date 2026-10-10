@@ -10,7 +10,7 @@ from itertools import combinations
 
 from cascadai.utils import token_detector
 from cascadai.schema.token_piece import Token_Type, Token
-from cascadai.schema.environment_graph import EnvironmentGraph 
+from cascadai.schema.environment_graph import EnvironmentGraph, EdegeDirectionClass
 from cascadai.utils import environment_graph_utils
 
 MODEL_PATH = "src/cascadai/models/token_detector_yolo11n/TokenNet.pt"
@@ -60,6 +60,7 @@ def get_line_of_sight(EG: EnvironmentGraph, node1, node2) -> bool:
 
     return True
 
+
 def prune_to_max_degree_2(subgraph: nx.Graph):
     """
     Greedily remove one high-degree node at a time until no node touches
@@ -81,28 +82,6 @@ def prune_to_max_degree_2(subgraph: nx.Graph):
 
     remaining_nodes = list(g.nodes)
     return remaining_nodes, len(remaining_nodes)
-
-
-def score_elk_in_line(n_elk: int) -> int:
-    """
-    Helper function for elk score card A
-
-    Args:
-        n_elk (int): number of elks in a straight line
-
-    Returns:
-        int: score for elks in straight line
-    """
-    score = (n_elk // 2) * 13
-    rest = n_elk % 4
-    match rest:
-        case 1:
-            score += 2
-        case 2:
-            score += 5
-        case 3:
-            score += 9
-    return score
 
 
 def score_bears_A(graph: nx.Graph) -> int:
@@ -236,7 +215,7 @@ def score_bears_D(graph: nx.Graph) -> int:
     return score
 
 
-def score_elk_A(graph: nx.Graph) -> int:
+def score_elk_A(env_graph: EnvironmentGraph) -> int:
     """_summary_
     TODO
     Args:
@@ -246,23 +225,48 @@ def score_elk_A(graph: nx.Graph) -> int:
         int: _description_
     """
 
-    clusters = find_clusters(graph, Token_Type.ELK)
+    def score_elk_in_line(n_elk: int) -> int:
+        """
+        Helper function for elk score card A
+
+        Args:
+            n_elk (int): number of elks in a straight line
+
+        Returns:
+            int: score for elks in straight line
+        """
+        line_score = (n_elk // 4) * 13
+        rest = n_elk % 4
+        match rest:
+            case 1:
+                line_score += 2
+            case 2:
+                line_score += 5
+            case 3:
+                line_score += 9
+        return line_score
+
+    clusters = find_clusters(env_graph.token_graph, Token_Type.ELK)
 
     if len(clusters) == 0:
         return 0
 
-    score = 0 
+    score = 0
 
     for c in clusters:
+
         group_size = len(c)
-        match group_size:
-            case 1:
-                score += 2
-            case 2:
-                score += 5
-            case _:
-                # for each of the 3 directions
-                # break cluster into subgrapg 
+
+        straight_line = env_graph.nodes_on_single_line(c)
+
+        if straight_line:
+            score += score_elk_in_line(group_size)
+        else:
+            match group_size:
+                case 3:
+                    score += (2 + 5)  # 1 elk + 2 elk scores 
+                case _:
+                    score += 0
     return score
 
 
@@ -861,7 +865,7 @@ def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: To
         case Token_Type.ELK:
             match SC:
                 case Score_Card.A:
-                    return score_elk_A(env_graph.token_graph)
+                    return score_elk_A(env_graph)
                 case Score_Card.B:
                     return score_elk_B(env_graph.token_graph)
                 case Score_Card.C:
