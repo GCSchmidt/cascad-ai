@@ -3,6 +3,7 @@ import networkx as nx
 import argparse
 import os
 import cv2
+from scipy.optimize import milp, LinearConstraint, Bounds
 from pathlib import Path
 from ultralytics import YOLO
 from enum import Enum
@@ -82,6 +83,54 @@ def prune_to_max_degree_2(subgraph: nx.Graph):
 
     remaining_nodes = list(g.nodes)
     return remaining_nodes, len(remaining_nodes)
+
+
+def optimize_elk_A(lines, score_by_length):
+    """Select the highest-scoring set of non-overlapping straight lines.
+
+    Args:
+        lines: list of straight lines, each an ordered list of nodes.
+        score_by_length: dict mapping a line's length to its score.
+
+    Returns:
+        tuple: (selected_lines, optimal_score) where no node is used by more
+        than one selected line and ``optimal_score`` is the maximum total score.
+    """
+    if not lines:
+        return [], 0
+
+    # Objective: maximize sum of scores (milp minimizes, so negate).
+    c = np.array([-score_by_length[len(line)] for line in lines], dtype=float)
+
+    # Each node may be used by at most one selected line.
+    all_nodes = list(set(node for line in lines for node in line))
+    node_rows = {
+        node: [i for i, line in enumerate(lines) if node in line]
+        for node in all_nodes
+    }
+    A = np.zeros((len(all_nodes), len(lines)))
+    for row, node in enumerate(all_nodes):
+        for i in node_rows[node]:
+            A[row, i] = 1.0
+
+    constraints = (
+        LinearConstraint(A, -np.inf, 1.0) if all_nodes else None
+    )
+
+    result = milp(
+        c,
+        integrality=np.ones(len(lines)),
+        bounds=Bounds(0, 1),
+        constraints=constraints,
+    )
+
+    if not result.success:
+        raise RuntimeError(f"Optimization failed: {result.message}")
+
+    selected_lines = [
+        lines[i] for i in range(len(lines)) if result.x[i] > 0.5
+    ]
+    return selected_lines, int(round(-result.fun))
 
 
 def score_bears_A(graph: nx.Graph) -> int:
@@ -224,32 +273,29 @@ def score_elk_A(env_graph: EnvironmentGraph) -> int:
     Returns:
         int: _description_
     """
-
-    def score_elk_in_line(n_elk: int) -> int:
-        """
-        Helper function for elk score card A
-
-        Args:
-            n_elk (int): number of elks in a straight line
-
-        Returns:
-            int: score for elks in straight line
-        """
-        line_score = (n_elk // 4) * 13
-        rest = n_elk % 4
-        match rest:
-            case 1:
-                line_score += 2
-            case 2:
-                line_score += 5
-            case 3:
-                line_score += 9
-        return line_score
-
     clusters = find_clusters(env_graph.token_graph, Token_Type.ELK)
 
     if len(clusters) == 0:
         return 0
+
+    score_by_length = {
+        1: 2,
+        2: 5,
+        3: 9,
+        4: 13,
+    }
+
+    def score_elk_in_line(n_elk: int) -> int:
+        """
+        Helper function for elk score card A
+        Args:
+            n_elk (int): number of elks in a straight line
+        Returns:
+            int: score for elks in straight line
+        """
+        line_score = (n_elk // 4) * score_by_length[4]
+        line_score += score_by_length[n_elk % 4]
+        return line_score
 
     score = 0
 
@@ -262,11 +308,13 @@ def score_elk_A(env_graph: EnvironmentGraph) -> int:
         if straight_line:
             score += score_elk_in_line(group_size)
         else:
-            match group_size:
-                case 3:
-                    score += (2 + 5)  # 1 elk + 2 elk scores 
-                case _:
-                    score += 0
+            if group_size == 3:
+                score += (2 + 5)  # 1 elk + 2 elk scores 
+            else:
+                lines = env_graph.get_possible_lines(c)
+                _, optimal_score = optimize_elk_A(lines, score_by_length)
+                score += optimal_score
+
     return score
 
 

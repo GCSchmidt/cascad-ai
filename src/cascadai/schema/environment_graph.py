@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import math
+from enum import IntEnum
 from collections import deque
 from scipy.spatial import cKDTree
 from scipy.optimize import linear_sum_assignment
@@ -9,6 +10,12 @@ from cascadai.schema.token_piece import Token_Type, Token
 
 MAX_NEIGHBOURS = 6
 DISTANCE_FACTOR = 2.25
+
+
+class EdegeDirectionClass(IntEnum):
+    CLASS0 = 0
+    CLASS1 = 1
+    CLASS2 = 2
 
 
 def angle_difference(a, b):
@@ -25,6 +32,143 @@ class EnvironmentGraph:
     @property
     def latice_angles(self):
         return np.arange(0, 6) * 60 + self.primary_axis
+
+    def _edge_direction_index(self, node1, node2) -> int:
+        """Nearest lattice direction index (0..5) for the edge node1-node2."""
+        angle = self._get_angle_between_nodes(node1, node2)
+        diffs = angle_difference(self.latice_angles, angle)
+        return int(np.argmin(diffs))
+
+    def _edge_line_class(self, node1, node2) -> EdegeDirectionClass:
+        """Line class 0/1/2. Opposite directions (k, k+3) map to the same class."""
+        return EdegeDirectionClass(self._edge_direction_index(node1, node2) % 3)
+
+    def resolve_line_direction(self, direction) -> EdegeDirectionClass:
+        """Resolve a direction to a line class (0/1/2).
+
+        An int 0/1/2 (or ``EdegeDirectionClass`` member) is taken as a line
+        class relative to ``primary_axis``. Any other value is treated as an
+        absolute angle in degrees and snapped to the nearest lattice direction.
+        """
+        if isinstance(direction, (int, np.integer)) and int(direction) in (0, 1, 2):
+            return EdegeDirectionClass(int(direction))
+        diffs = angle_difference(self.latice_angles, float(direction))
+        return EdegeDirectionClass(int(np.argmin(diffs)) % 3)
+
+    def assign_edge_classes(self, graph=None) -> None:
+        """Write ``direction_index`` (0..5) and ``direction_class`` (0..2) onto
+        every edge. Must run after the lattice orientation is known and after
+        node coordinates change (e.g. ``build_ideal_lattice``).
+        """
+        graph = self.token_graph if graph is None else graph
+        for u, v in graph.edges():
+            graph.edges[u, v]["direction_index"] = self._edge_direction_index(u, v)
+            graph.edges[u, v]["direction_class"] = self._edge_line_class(u, v)
+
+    def get_lines(self, direction, graph=None, include_singletons=False):
+        """Return the straight lines of nodes along ``direction``.
+
+        ``direction`` is a line class (0/1/2, relative to ``primary_axis``) or
+        an absolute angle in degrees. Edges whose class differs are dropped;
+        each remaining connected component is a maximal straight line, returned
+        as a list of nodes ordered end-to-end. Works on any graph or subgraph
+        whose edges carry a ``direction_class`` attribute (e.g. a
+        ``token_graph.subgraph(cluster)`` view), falling back to computing the
+        class from node coordinates when the attribute is absent.
+        """
+        graph = self.token_graph if graph is None else graph
+        cls = self.resolve_line_direction(direction)
+
+        line_graph = nx.Graph()
+        line_graph.add_nodes_from(graph.nodes)
+        for u, v, data in graph.edges(data=True):
+            edge_class = data.get("direction_class")
+            if edge_class is None:
+                edge_class = self._edge_line_class(u, v)
+            else:
+                edge_class = EdegeDirectionClass(edge_class)
+            if edge_class == cls:
+                line_graph.add_edge(u, v)
+
+        lines = []
+        for comp in nx.connected_components(line_graph):
+            if len(comp) < 2:
+                if include_singletons:
+                    lines.append([next(iter(comp))])
+                continue
+            sub = line_graph.subgraph(comp)
+            endpoints = [n for n in sub.nodes if sub.degree[n] <= 1]
+            start = endpoints[0] if endpoints else next(iter(sub.nodes))
+            ordered, prev, cur = [], None, start
+            while cur is not None:
+                ordered.append(cur)
+                nxt = [n for n in sub.neighbors(cur) if n != prev]
+                prev, cur = cur, (nxt[0] if nxt else None)
+            lines.append(ordered)
+        return lines
+
+    def nodes_on_single_line(self, nodes, graph=None) -> bool:
+        """Return True if ``nodes`` all lie on one straight lattice line.
+
+        A set of nodes lies on one line if, for some edge class
+        (:class:`EdegeDirectionClass`), all nodes fall in a single connected
+        component of the subgraph induced by ``nodes`` using only edges of that
+        class. Edge classes are read from the ``direction_class`` attribute
+        (set by ``assign_edge_classes``); ``get_lines`` falls back to computing
+        the class from node coordinates when the attribute is absent. An empty
+        or single-node set is trivially on a line.
+        """
+        graph = self.token_graph if graph is None else graph
+        nodes = list(nodes)
+        if len(nodes) <= 2:
+            return True
+        sub = graph.subgraph(nodes)
+        return any(
+            len(self.get_lines(cls, sub, include_singletons=True)) == 1
+            for cls in EdegeDirectionClass
+        )
+
+    def get_possible_lines(self, graph=None, max_length=4):
+        """Return every possible straight line of 1..``max_length`` nodes.
+
+        ``graph`` may be an ``nx.Graph`` or subgraph view (e.g.
+        ``self.token_graph.subgraph(cluster)``) or an iterable of nodes (in
+        which case the induced subgraph on those nodes is used); it defaults
+        to the full ``token_graph``. Lines never use nodes or edges outside
+        the given graph. The nodes are assumed to form a connected subgraph.
+
+        For each of the 3 line classes the maximal straight lines are found
+        with ``get_lines``, then every contiguous sub-segment of length
+        1..``max_length`` is emitted (a 5-node row yields 14 lines for
+        ``max_length=4``). Duplicate sequences (a node shared by several line
+        classes reappears as a length-1 segment) are collapsed, and the lines
+        are returned longest-first, ties keeping class order (0/1/2).
+
+        Returns:
+            list[list]: straight lines, each an ordered list of nodes.
+        """
+        graph = self.token_graph if graph is None else graph
+        if not isinstance(graph, nx.Graph):
+            graph = self.token_graph.subgraph(graph)
+
+        lines = []
+        for cls in EdegeDirectionClass:
+            for maximal in self.get_lines(cls, graph):
+                m = len(maximal)
+                if m < 1:
+                    continue
+                for length in range(1, min(m, max_length) + 1):
+                    for start in range(0, m - length + 1):
+                        lines.append(maximal[start:start + length])
+
+        seen = set()
+        unique = []
+        for line in sorted(lines, key=len, reverse=True):
+            key = tuple(line)
+            if key not in seen:
+                seen.add(key)
+                unique.append(line)
+        return unique
 
     def add_tokens(self, tokens) -> None:
         for i, t in enumerate(tokens):
@@ -67,6 +211,7 @@ class EnvironmentGraph:
         self.add_edges()
         self._hex_lattice_orientation_estimation()
         self.fill_token_graph()
+        self.assign_edge_classes()
 
     def fill_token_graph(self):
         # loop until all real tokens have 6 neighbours, and graph is fully connected
@@ -230,4 +375,5 @@ class EnvironmentGraph:
             px, py = q * e1 + r * e2
             node.x, node.y = float(px), float(py)
             self.token_graph.nodes[node]["x"], self.token_graph.nodes[node]["y"] = node.x, node.y
+        self.assign_edge_classes()
 
