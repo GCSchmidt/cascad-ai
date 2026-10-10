@@ -265,13 +265,15 @@ def score_bears_D(graph: nx.Graph) -> int:
 
 
 def score_elk_A(env_graph: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+    """
+    Score for groups of elk in a staright line.
+    Groups may be touching. 
+
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): an EnvironmentGraph
 
     Returns:
-        int: _description_
+        int: score for elks
     """
     clusters = find_clusters(env_graph.token_graph, Token_Type.ELK)
 
