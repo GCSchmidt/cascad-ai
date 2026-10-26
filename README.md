@@ -71,6 +71,7 @@ Notes:
 # The Website
 
 ```bash
+cd website/ 
 flask --app app run
 ```
 
