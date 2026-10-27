@@ -56,12 +56,6 @@ def find_clusters(graph: nx.Graph, toke_type: Token_Type):
     return clusters
 
 
-def get_line_of_sight(EG: EnvironmentGraph, node1, node2) -> bool:
-    line_of_sight = nx.shortest_path(EG.token_graph, node1, node2)
-
-    return True
-
-
 def prune_to_max_degree_2(subgraph: nx.Graph):
     """
     Greedily remove one high-degree node at a time until no node touches
