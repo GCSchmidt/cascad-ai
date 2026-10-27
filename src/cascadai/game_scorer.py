@@ -320,7 +320,7 @@ def score_elk_A(env_graph: EnvironmentGraph) -> int:
     return score
 
 
-def score_elk_B(graph: nx.Graph) -> int:
+def score_elk_B(env_graph: EnvironmentGraph) -> int:
     """_summary_
     TODO
     Args:
@@ -329,7 +329,48 @@ def score_elk_B(graph: nx.Graph) -> int:
     Returns:
         int: _description_
     """
-    return 0
+    score = 0
+
+    clusters = find_clusters(env_graph.token_graph, Token_Type.ELK)
+    if len(clusters) == 0:
+        return 0
+
+    score_by_size = {
+        1: 2,
+        2: 5,
+        3: 9,
+        4: 13,
+    }
+    
+    for c in clusters:
+        group_size = len(c)
+
+        if group_size == 1 or group_size == 2:
+            score += score_by_size[group_size]
+        elif group_size == 3:
+            cluster_graph = env_graph.token_graph.subgraph(c)
+            if min(dict(cluster_graph.degree()).values()) == 2:
+                'in trianlge shape / each node has 2 connections'
+                score += score_by_size[group_size]
+            else:
+                score += score_by_size[1]
+                score += score_by_size[2]
+        elif group_size == 4:
+            'check shape'
+            if 1 > 0:
+                score += score_by_size[group_size]
+            elif env_graph.nodes_on_single_line(c):
+                score += score_by_size[2]
+                score += score_by_size[2]
+        else:
+            if group_size == 3:
+                score += (2 + 5)  # 1 elk + 2 elk scores 
+            else:
+                lines = env_graph.get_possible_lines(c)
+                _, optimal_score = optimize_elk_A(lines, score_by_length)
+                score += optimal_score
+
+    return score
 
 
 def score_elk_C(graph: nx.Graph) -> int:
@@ -721,16 +762,92 @@ def score_hawks_C(env_graph: EnvironmentGraph) -> int:
     return score
 
 
-def score_hawks_D(graph: nx.Graph) -> int:
-    """_summary_
-    TODO
+def score_hawks_D(env_graph: EnvironmentGraph) -> int:
+    """Score for each pair of hawks, an increasing number of points based on
+    the number of unique animal types between them (not including other hawks).
+    Each hawk can only be part of one pair.
+
     Args:
         EG (EnvironmentGraph): _description_
 
     Returns:
-        int: _description_
+        int: score
     """
-    return 0
+
+    def score_hawk_pair(sub_graph: nx.Graph) -> int:
+        if any(node.type == Token_Type.HAWK for node in sub_graph.nodes):
+            return -1
+
+        n_unique = len({
+            node.type
+            for node in sub_graph.nodes
+            if node.type not in (Token_Type.HAWK, Token_Type.BLANK)
+        })
+
+        match n_unique:
+            case 0:
+                return 0
+            case 1:
+                return 4
+            case 2:
+                return 7
+            case _:
+                return 9
+
+    hawk_tokens = find_all_tokens_of_type(env_graph.token_graph, Token_Type.HAWK)
+
+    if len(hawk_tokens) < 2:
+        return 0
+
+    pair_scores = {}
+
+    for hawk1, hawk2 in combinations(hawk_tokens, 2):
+        if not env_graph.token_in_line_of_sight(hawk1, hawk2):
+            continue
+
+        try:
+            shortest_path = nx.shortest_path(env_graph.token_graph, hawk1, hawk2)
+        except nx.NetworkXNoPath:
+            continue
+
+        between_hawks = shortest_path[1:-1]
+
+        if not between_hawks:
+            continue
+
+        if not env_graph.nodes_on_single_line(shortest_path):
+            continue
+
+        pair_score = score_hawk_pair(env_graph.token_graph.subgraph(between_hawks))
+
+        if pair_score > 0:
+            pair_scores[(hawk1, hawk2)] = pair_score
+
+    if not pair_scores:
+        return 0
+
+    pairs = list(pair_scores)
+    scores = np.array([pair_scores[pair] for pair in pairs], dtype=float)
+    c = -scores
+
+    hawks = list({hawk for pair in pairs for hawk in pair})
+    A = np.zeros((len(hawks), len(pairs)))
+    for row, hawk in enumerate(hawks):
+        for col, pair in enumerate(pairs):
+            if hawk in pair:
+                A[row, col] = 1.0
+
+    result = milp(
+        c,
+        integrality=np.ones(len(pairs)),
+        bounds=Bounds(0, 1),
+        constraints=LinearConstraint(A, -np.inf, 1.0),
+    )
+
+    if not result.success:
+        raise RuntimeError(f"Optimization failed: {result.message}")
+
+    return int(round(-result.fun))
 
 
 def score_foxes_A(graph: nx.Graph) -> int:
@@ -917,7 +1034,7 @@ def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: To
                 case Score_Card.A:
                     return score_elk_A(env_graph)
                 case Score_Card.B:
-                    return score_elk_B(env_graph.token_graph)
+                    return score_elk_B(env_graph)
                 case Score_Card.C:
                     return score_elk_C(env_graph.token_graph)
                 case Score_Card.D:
@@ -941,7 +1058,7 @@ def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: To
                 case Score_Card.C:
                     return score_hawks_C(env_graph)
                 case Score_Card.D:
-                    return score_hawks_D(env_graph.token_graph)
+                    return score_hawks_D(env_graph)
         case Token_Type.FOX:
             match SC:
                 case Score_Card.A:
