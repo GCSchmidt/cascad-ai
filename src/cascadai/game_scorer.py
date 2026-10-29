@@ -79,30 +79,30 @@ def prune_to_max_degree_2(subgraph: nx.Graph):
     return remaining_nodes, len(remaining_nodes)
 
 
-def optimize_elk_A(lines, score_by_length):
-    """Select the highest-scoring set of non-overlapping straight lines.
+def optimize_elk_groups(groups, score_by_length):
+    """Select the highest-scoring set of non-overlapping elk groups.
 
     Args:
-        lines: list of straight lines, each an ordered list of nodes.
-        score_by_length: dict mapping a line's length to its score.
+        groups: list of groups, each a list of nodes.
+        score_by_length: dict mapping a group's size to its score.
 
     Returns:
-        tuple: (selected_lines, optimal_score) where no node is used by more
-        than one selected line and ``optimal_score`` is the maximum total score.
+        tuple: (selected_groups, optimal_score) where no node is used by more
+        than one selected group and ``optimal_score`` is the maximum total score.
     """
-    if not lines:
+    if not groups:
         return [], 0
 
     # Objective: maximize sum of scores (milp minimizes, so negate).
-    c = np.array([-score_by_length[len(line)] for line in lines], dtype=float)
+    c = np.array([-score_by_length[len(group)] for group in groups], dtype=float)
 
-    # Each node may be used by at most one selected line.
-    all_nodes = list(set(node for line in lines for node in line))
+    # Each node may be used by at most one selected group.
+    all_nodes = list(set(node for group in groups for node in group))
     node_rows = {
-        node: [i for i, line in enumerate(lines) if node in line]
+        node: [i for i, group in enumerate(groups) if node in group]
         for node in all_nodes
     }
-    A = np.zeros((len(all_nodes), len(lines)))
+    A = np.zeros((len(all_nodes), len(groups)))
     for row, node in enumerate(all_nodes):
         for i in node_rows[node]:
             A[row, i] = 1.0
@@ -113,7 +113,7 @@ def optimize_elk_A(lines, score_by_length):
 
     result = milp(
         c,
-        integrality=np.ones(len(lines)),
+        integrality=np.ones(len(groups)),
         bounds=Bounds(0, 1),
         constraints=constraints,
     )
@@ -121,10 +121,10 @@ def optimize_elk_A(lines, score_by_length):
     if not result.success:
         raise RuntimeError(f"Optimization failed: {result.message}")
 
-    selected_lines = [
-        lines[i] for i in range(len(lines)) if result.x[i] > 0.5
+    selected_groups = [
+        groups[i] for i in range(len(groups)) if result.x[i] > 0.5
     ]
-    return selected_lines, int(round(-result.fun))
+    return selected_groups, int(round(-result.fun))
 
 
 def score_bears_A(graph: nx.Graph) -> int:
@@ -308,20 +308,21 @@ def score_elk_A(env_graph: EnvironmentGraph) -> int:
                 score += (2 + 5)  # 1 elk + 2 elk scores 
             else:
                 lines = env_graph.get_possible_lines(c)
-                _, optimal_score = optimize_elk_A(lines, score_by_length)
+                _, optimal_score = optimize_elk_groups(lines, score_by_length)
                 score += optimal_score
 
     return score
 
 
 def score_elk_B(env_graph: EnvironmentGraph) -> int:
-    """_summary_
-    TODO
+    """    Score for groups of elk in specific shapes.
+    Groups may be touching.
+
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): an EnvironmentGraph
 
     Returns:
-        int: _description_
+        int: score for elks
     """
     score = 0
 
@@ -350,6 +351,8 @@ def score_elk_B(env_graph: EnvironmentGraph) -> int:
                 score += score_by_size[1]
                 score += score_by_size[2]
         elif group_size == 4:
+            # TODO
+            
             'check shape'
             if 1 > 0:
                 score += score_by_size[group_size]
@@ -360,8 +363,8 @@ def score_elk_B(env_graph: EnvironmentGraph) -> int:
             if group_size == 3:
                 score += (2 + 5)  # 1 elk + 2 elk scores 
             else:
-                lines = env_graph.get_possible_lines(c)
-                _, optimal_score = optimize_elk_A(lines, score_by_length)
+                
+                _, optimal_score = optimize_elk_B(lines, score_by_length)
                 score += optimal_score
 
     return score
@@ -398,16 +401,63 @@ def score_elk_C(graph: nx.Graph) -> int:
     return score
 
 
-def score_elk_D(graph: nx.Graph) -> int:
-    """_summary_
-    TODO
+def score_elk_D(env_graph: EnvironmentGraph) -> int:
+    """    Score for groups of elk in a circular shape.
+    Groups may be touching.
+
     Args:
-        EG (EnvironmentGraph): _description_
+        EG (EnvironmentGraph): an EnvironmentGraph
 
     Returns:
-        int: _description_
+        int: score for elks
     """
-    return 0
+    graph = env_graph.token_graph
+    elk_tokens = find_all_tokens_of_type(graph, Token_Type.ELK)
+
+    if len(elk_tokens) == 0:
+        return 0
+
+    # score based on number of elk touching each other around a single node
+    score_by_size = {
+        1: 2,
+        2: 5,
+        3: 8,
+        4: 12,
+        5: 16,
+        6: 21
+    }
+
+    elk_set = set(elk_tokens)
+
+    # A circular group is centred on a node with elk surrounding it. The centre
+    # may itself be an elk, another token, or an empty tile.
+    candidate_centers = set(elk_tokens)
+    for elk in elk_tokens:
+        candidate_centers.update(graph.neighbors(elk))
+
+    candidate_groups = []
+    seen_groups = set()
+
+    for center in candidate_centers:
+        elk_neighbours = [n for n in graph.neighbors(center) if n in elk_set]
+
+        for size in range(1, min(len(elk_neighbours), 6) + 1):
+            for subset in combinations(elk_neighbours, size):
+                if not nx.is_connected(graph.subgraph(subset)):
+                    continue
+
+                group_key = frozenset(subset)
+                if group_key in seen_groups:
+                    continue
+
+                seen_groups.add(group_key)
+                candidate_groups.append(list(subset))
+
+    if len(candidate_groups) == 0:
+        return 0
+
+    _, optimal_score = optimize_elk_groups(candidate_groups, score_by_size)
+    return optimal_score
 
 
 def score_salmon_A(graph: nx.Graph) -> int:
@@ -1032,7 +1082,7 @@ def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: To
                 case Score_Card.C:
                     return score_elk_C(env_graph.token_graph)
                 case Score_Card.D:
-                    return score_elk_D(env_graph.token_graph)               
+                    return score_elk_D(env_graph)
         case Token_Type.SALMON:
             match SC:
                 case Score_Card.A:
