@@ -308,6 +308,12 @@ h1 .accent {
     flex-shrink: 0;
 }
 
+.habitat-dot {
+    border: none;
+    border-radius: 0;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
 .token-bear { background-color: #352c02; }
 .token-elk { background-color: #e0c466; }
 .token-salmon { background-color: #e972df; }
@@ -316,7 +322,7 @@ h1 .accent {
 
 .habitat-mountains { background-color: #929196; }
 .habitat-forests { background-color: #0f410e; }
-.habitat-prairies { background-color: #dbcf23; }
+.habitat-prairies { background-color: #b9af17; }
 .habitat-wetlands { background-color: #4cbd68; }
 .habitat-rivers { background-color: #1e4da3; }
 
