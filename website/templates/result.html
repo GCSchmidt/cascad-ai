@@ -28,7 +28,10 @@
             <h2>Habitat corridors</h2>
             {% for habitat in habitats %}
             <div class="animal-row">
-                <span class="animal-label">{{ habitat }}</span>
+                <span class="animal-label">
+                    <span class="token-dot habitat-{{ habitat|lower }}"></span>
+                    {{ habitat }}
+                </span>
                 <span class="score-value">{{ habitat_scores[habitat] }}</span>
             </div>
             {% endfor %}
