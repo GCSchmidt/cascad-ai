@@ -41,19 +41,5 @@
         </div>
 
         <button type="submit" class="btn">Score my game</button>
-
-        {% if submitted %}
-        <div class="result" role="status">
-            <strong>Submitted (scoring coming soon).</strong>
-            {% if filename %}
-            <div>Image: <code>{{ filename }}</code></div>
-            {% endif %}
-            <ul>
-                {% for animal in animals %}
-                <li>{{ animal }}: card {{ cards[animal] }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
     </form>
 {% endblock %}

@@ -105,6 +105,36 @@ h1 .accent {
     color: var(--text-bright);
 }
 
+.result-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding: 1rem 1.25rem;
+    background-color: var(--blue-primary-dark);
+    border-left: 4px solid var(--yellow);
+    border-radius: 6px;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.result-total strong {
+    font-size: 1.4rem;
+    color: var(--yellow);
+}
+
+.result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.score-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--yellow);
+}
+
 .section {
     margin-bottom: 2rem;
 }
@@ -251,4 +281,10 @@ h1 .accent {
 
 .text-text {
     color: var(--text-bright);
+}
+
+@media (max-width: 700px) {
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
 }

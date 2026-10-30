@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Results · CascadAI{% endblock %}
+
+{% block content %}
+    <h1>Results<span class="accent">.</span></h1>
+    <p class="lead">Here is the automatic score for your uploaded board.</p>
+
+    <div class="result-total" role="status">
+        <span>Total score</span>
+        <strong>{{ total }}</strong>
+    </div>
+
+    <div class="result-grid">
+        <div class="card">
+            <h2>Animal scores</h2>
+            {% for animal in animals %}
+            <div class="animal-row">
+                <span class="animal-label">
+                    <span class="token-dot token-{{ animal|lower }}"></span>
+                    {{ animal }}
+                </span>
+                <span class="score-value">{{ animal_scores[animal] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            <h2>Habitat corridors</h2>
+            {% for habitat in habitats %}
+            <div class="animal-row">
+                <span class="animal-label">{{ habitat }}</span>
+                <span class="score-value">{{ habitat_scores[habitat] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
