@@ -79,7 +79,7 @@ def prune_to_max_degree_2(subgraph: nx.Graph):
     return remaining_nodes, len(remaining_nodes)
 
 
-def optimize_elk_groups(groups, score_by_length):
+def optimize_elk_groups(groups, score_by_size):
     """Select the highest-scoring set of non-overlapping elk groups.
 
     Args:
@@ -94,7 +94,7 @@ def optimize_elk_groups(groups, score_by_length):
         return [], 0
 
     # Objective: maximize sum of scores (milp minimizes, so negate).
-    c = np.array([-score_by_length[len(group)] for group in groups], dtype=float)
+    c = np.array([-score_by_size[len(group)] for group in groups], dtype=float)
 
     # Each node may be used by at most one selected group.
     all_nodes = list(set(node for group in groups for node in group))
@@ -314,7 +314,25 @@ def score_elk_A(env_graph: EnvironmentGraph) -> int:
     return score
 
 
-def score_elk_B(env_graph: EnvironmentGraph) -> int:
+def is_triangle(graph: nx.Graph, nodes) -> bool:
+    """Return True if the nodes form a 3-elk triangle."""
+    return len(nodes) == 3 and graph.subgraph(nodes).number_of_edges() == 3
+
+
+def is_diamond(graph: nx.Graph, nodes) -> bool:
+    """Return True if the nodes form a 4-elk diamond."""
+    if len(nodes) != 4:
+        return False
+
+    subgraph = graph.subgraph(nodes)
+    if subgraph.number_of_edges() != 5:
+        return False
+
+    degrees = sorted(dict(subgraph.degree()).values())
+    return degrees == [2, 2, 3, 3]
+
+
+def score_elk_B(token_graph: nx.Graph) -> int:
     """    Score for groups of elk in specific shapes.
     Groups may be touching.
 
@@ -324,9 +342,8 @@ def score_elk_B(env_graph: EnvironmentGraph) -> int:
     Returns:
         int: score for elks
     """
-    score = 0
+    clusters = find_clusters(token_graph, Token_Type.ELK)
 
-    clusters = find_clusters(env_graph.token_graph, Token_Type.ELK)
     if len(clusters) == 0:
         return 0
 
@@ -336,36 +353,34 @@ def score_elk_B(env_graph: EnvironmentGraph) -> int:
         3: 9,
         4: 13,
     }
-    
-    for c in clusters:
-        group_size = len(c)
 
-        if group_size == 1 or group_size == 2:
-            score += score_by_size[group_size]
-        elif group_size == 3:
-            cluster_graph = env_graph.token_graph.subgraph(c)
-            if min(dict(cluster_graph.degree()).values()) == 2:
-                'in trianlge shape / each node has 2 connections'
-                score += score_by_size[group_size]
-            else:
-                score += score_by_size[1]
-                score += score_by_size[2]
-        elif group_size == 4:
-            # TODO
-            
-            'check shape'
-            if 1 > 0:
-                score += score_by_size[group_size]
-            elif env_graph.nodes_on_single_line(c):
-                score += score_by_size[2]
-                score += score_by_size[2]
-        else:
-            if group_size == 3:
-                score += (2 + 5)  # 1 elk + 2 elk scores 
-            else:
-                
-                _, optimal_score = optimize_elk_B(lines, score_by_length)
-                score += optimal_score
+    score = 0
+
+    for cluster in clusters:
+        nodes = list(cluster)
+
+        # Single elk and adjacent pairs are always valid groups.
+        candidate_groups = [[node] for node in nodes]
+        candidate_groups.extend(
+            list(pair)
+            for pair in combinations(nodes, 2)
+            if token_graph.has_edge(*pair)
+        )
+
+        candidate_groups.extend(
+            list(triangle)
+            for triangle in combinations(nodes, 3)
+            if is_triangle(token_graph, triangle)
+        )
+
+        candidate_groups.extend(
+            list(diamond)
+            for diamond in combinations(nodes, 4)
+            if is_diamond(token_graph, diamond)
+        )
+
+        _, optimal_score = optimize_elk_groups(candidate_groups, score_by_size)
+        score += optimal_score
 
     return score
 
@@ -1078,7 +1093,7 @@ def score_token_type(env_graph: EnvironmentGraph, SC: Score_Card, token_type: To
                 case Score_Card.A:
                     return score_elk_A(env_graph)
                 case Score_Card.B:
-                    return score_elk_B(env_graph)
+                    return score_elk_B(env_graph.token_graph)
                 case Score_Card.C:
                     return score_elk_C(env_graph.token_graph)
                 case Score_Card.D:
