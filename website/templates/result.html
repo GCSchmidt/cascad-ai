@@ -5,14 +5,29 @@
     <h1>Results<span class="accent">.</span></h1>
     <p class="lead">Here is the automatic score for your uploaded board.</p>
 
+    <div class="result-controls">
+        <div class="form-group">
+            <label for="players">Number of players</label>
+            <select id="players" name="players">
+                {% for players in range(1, 5) %}
+                <option value="{{ players }}">{{ players }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="nature_tokens">Nature tokens</label>
+            <input type="number" id="nature_tokens" name="nature_tokens" min="0" max="20" step="1" value="0">
+        </div>
+    </div>
+
     <div class="result-total" role="status">
         <span>Total score</span>
-        <strong>{{ total }}</strong>
+        <strong id="total-score" data-base-total="{{ total }}" data-solo-bonus="{{ solo_bonus }}">{{ total + solo_bonus }}</strong>
     </div>
 
     <div class="result-grid">
         <div class="card">
-            <h2>Animal scores</h2>
+            <h2>Wildlife</h2>
             {% for animal in animals %}
             <div class="animal-row">
                 <span class="animal-label">
@@ -22,19 +37,68 @@
                 <span class="score-value">{{ animal_scores[animal] }}</span>
             </div>
             {% endfor %}
+            <div class="card-total">
+                <span>Total</span>
+                <span class="score-value">{{ animal_total }}</span>
+            </div>
         </div>
 
         <div class="card">
-            <h2>Habitat corridors</h2>
+            <h2>Habitat Tile Corridors</h2>
             {% for habitat in habitats %}
             <div class="animal-row">
                 <span class="animal-label">
                     <span class="token-dot habitat-{{ habitat|lower }}"></span>
                     {{ habitat }}
                 </span>
-                <span class="score-value">{{ habitat_scores[habitat] }}</span>
+                <span class="habitat-score">
+                    <span class="score-value">{{ habitat_scores[habitat] }}</span>
+                    {% if habitat_scores[habitat] > 7 %}
+                    <span class="habitat-bonus">+2</span>
+                    {% endif %}
+                </span>
             </div>
             {% endfor %}
+            <div class="card-total">
+                <span>Total</span>
+                <span class="score-value" id="habitat-total-score" data-base-total="{{ habitat_total }}">{{ habitat_total + solo_bonus }}</span>
+            </div>
         </div>
     </div>
+
+    <script>
+        const players = document.getElementById("players");
+        const natureTokens = document.getElementById("nature_tokens");
+        const totalScore = document.getElementById("total-score");
+        const habitatTotalScore = document.getElementById("habitat-total-score");
+        const habitatBonuses = document.querySelectorAll(".habitat-bonus");
+        const baseTotal = Number(totalScore.dataset.baseTotal);
+        const habitatBaseTotal = Number(habitatTotalScore.dataset.baseTotal);
+        const soloBonus = Number(totalScore.dataset.soloBonus);
+
+        function natureTokenValue() {
+            const value = parseInt(natureTokens.value, 10) || 0;
+            return Math.min(20, Math.max(0, value));
+        }
+
+        function updateScore() {
+            const isSolo = players.value === "1";
+            const bonus = isSolo ? soloBonus : 0;
+            totalScore.textContent = baseTotal + bonus + natureTokenValue();
+            habitatTotalScore.textContent = habitatBaseTotal + bonus;
+            habitatBonuses.forEach((element) => {
+                element.hidden = !isSolo;
+            });
+        }
+
+        natureTokens.addEventListener("input", updateScore);
+
+        natureTokens.addEventListener("change", () => {
+            natureTokens.value = natureTokenValue();
+            updateScore();
+        });
+
+        players.addEventListener("change", updateScore);
+        updateScore();
+    </script>
 {% endblock %}

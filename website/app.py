@@ -39,13 +39,19 @@ def auto_score():
 
 @app.route("/result")
 def result():
-    total = sum(ANIMAL_SCORES.values()) + sum(HABITAT_SCORES.values())
+    animal_total = sum(ANIMAL_SCORES.values())
+    habitat_total = sum(HABITAT_SCORES.values())
+    total = animal_total + habitat_total
+    solo_bonus = sum(2 for score in HABITAT_SCORES.values() if score > 7)
     return render_template(
         "result.html",
         animals=ANIMALS,
         animal_scores=ANIMAL_SCORES,
+        animal_total=animal_total,
         habitats=HABITATS,
         habitat_scores=HABITAT_SCORES,
+        habitat_total=habitat_total,
+        solo_bonus=solo_bonus,
         total=total,
     )
 

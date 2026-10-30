@@ -108,17 +108,46 @@ h1 .accent {
     color: var(--text-dark);
 }
 
+.result-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.result-controls .form-group {
+    margin-top: 0;
+}
+
+.result-controls select,
+.result-controls input[type="number"] {
+    width: 50%;
+    font-size: 1rem;
+    padding: 0.4rem 0.8rem;
+    border: 5px solid var(--brown-dark);
+    border-radius: 6px;
+    background-color: var(--brown-light);
+    color: var(--text-dark);
+    outline: none;
+    font-weight: 700;
+}
+
+.result-controls select {
+    cursor: pointer;
+}
+
 .result-total {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 2rem;
     padding: 1rem 1.25rem;
-    background-color: var(--blue-primary-dark);
-    border-left: 4px solid var(--green-secondary);
+    background-color: var(--brown-light);
+    border: 5px solid var(--brown-dark);
     border-radius: 6px;
-    font-size: 1.05rem;
+    font-size: 1.25rem;
     font-weight: 600;
+    color: var(--text-dark);
 }
 
 .result-total strong {
@@ -136,6 +165,35 @@ h1 .accent {
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--text-dark);
+}
+
+.habitat-score {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.habitat-bonus {
+    padding: 0.1rem 0.45rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    background-color: var(--green-secondary);
+    border-radius: 999px;
+}
+
+.habitat-bonus[hidden] {
+    display: none;
+}
+
+.card-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    font-weight: 700;
+    font-size: 1.25rem;
 }
 
 .section {
@@ -293,7 +351,8 @@ h1 .accent {
 }
 
 @media (max-width: 700px) {
-    .result-grid {
+    .result-grid,
+    .result-controls {
         grid-template-columns: 1fr;
     }
 }
