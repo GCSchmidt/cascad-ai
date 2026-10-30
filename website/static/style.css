@@ -141,18 +141,28 @@ h1 .accent {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 2rem;
-    padding: 1rem 1.25rem;
+    padding: 0.5rem 1rem 0.5rem 1rem;
     background-color: var(--brown-light);
     border: 5px solid var(--brown-dark);
     border-radius: 6px;
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: 1.5rem;
+    font-weight: 700;
     color: var(--text-dark);
 }
 
 .result-total strong {
-    font-size: 1.4rem;
-    color: var(--green-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    flex-shrink: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-bright);
+    background-color: var(--green-secondary-dark);
+    border-radius: 50%;
 }
 
 .result-grid {
@@ -178,7 +188,7 @@ h1 .accent {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--text-bright);
-    background-color: var(--green-secondary);
+    background-color: var(--green-secondary-dark);
     border-radius: 999px;
 }
 
@@ -234,15 +244,15 @@ h1 .accent {
     font-weight: 700;
     color: var(--text-bright);
     background-color: var(--brown-dark);
-    border: 2px solid var(--brown-light);
+    /* border: 2px solid var(--brown-light); */
     border-radius: 6px;
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .rank-option input:checked + .rank-badge {
     color: var(--text-bright);
-    background-color: var(--green-secondary);
-    border-color: var(--green-secondary-dark);
+    background-color: var(--green-secondary-dark);
+    /* border-color: var(--green-secondary-dark); */
 }
 
 .rank-option input:focus-visible + .rank-badge {
