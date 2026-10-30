@@ -186,6 +186,70 @@ h1 .accent {
     display: none;
 }
 
+.habitat-row {
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.habitat-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.habitat-rank {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.habitat-rank[hidden] {
+    display: none;
+}
+
+.rank-option {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+}
+
+.rank-option[hidden] {
+    display: none;
+}
+
+.rank-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    background-color: var(--brown-dark);
+    border: 2px solid var(--brown-light);
+    border-radius: 6px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.rank-option input:checked + .rank-badge {
+    color: var(--text-bright);
+    background-color: var(--green-secondary);
+    border-color: var(--green-secondary-dark);
+}
+
+.rank-option input:focus-visible + .rank-badge {
+    outline: 2px solid var(--green-secondary);
+    outline-offset: 2px;
+}
+
 .card-total {
     display: flex;
     align-items: center;
