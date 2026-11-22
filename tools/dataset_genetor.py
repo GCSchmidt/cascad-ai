@@ -35,6 +35,8 @@ ALL_TOKENS_IMAGE_PATH = GAME_PIECES_IMAGE_DIR_PATH / "all_tokens_bg_removed.png"
 BUILDING_BLOCKS_DIR = DATASET_DIR_PATH / "building_blocks"
 FOR_MODEL_DIR = DATASET_DIR_PATH / "for_model"
 SINGLE_PIECE_MASK_DIR = DATASET_DIR_PATH / "single_piece_masks"
+TARGET_IMAGE_WIDTH = 4000
+TARGET_IMAGE_HEIGHT = 3000
 
 
 def get_background_mask(image_path):
@@ -137,7 +139,7 @@ def preprocess_tile_piece(bgra, mask):
 
 
 def preprocess_token_piece(bgra):
-    scale = 2
+    scale = 1.75
     processed_bgra = cv2.resize(bgra, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     return processed_bgra
 
@@ -215,6 +217,21 @@ def place_token_on_tile(tile_image, token_type, shift=[0, 0]):
 
     covered_tile = overlay_centered(tile_image, token_image, shift)
     return covered_tile
+
+
+def pad_to_4_3(image):
+    image_h, image_w = image.shape[:2]
+    if image_w > TARGET_IMAGE_WIDTH or image_h > TARGET_IMAGE_HEIGHT:
+        raise ValueError(
+            f"Generated image {image_w}x{image_h} exceeds "
+            f"{TARGET_IMAGE_WIDTH}x{TARGET_IMAGE_HEIGHT}"
+        )
+
+    pad_x = (TARGET_IMAGE_WIDTH - image_w) // 2
+    pad_y = (TARGET_IMAGE_HEIGHT - image_h) // 2
+    padded = np.full((TARGET_IMAGE_HEIGHT, TARGET_IMAGE_WIDTH, 4), 255, dtype=np.uint8)
+    padded[pad_y:pad_y + image_h, pad_x:pad_x + image_w] = image
+    return padded, pad_x, pad_y
 
 
 def generate_dataset_sample(image_path: str, anno_path: str):
@@ -303,7 +320,13 @@ def generate_dataset_sample(image_path: str, anno_path: str):
             canvas_region[:, :, 3], tile_img_region[:, :, 3]
         )
 
-    cv2.imwrite(image_path, env_image)
+    padded_image, pad_x, pad_y = pad_to_4_3(env_image)
+    for token in Annotation.tokens:
+        token.x += pad_x
+        token.y += pad_y
+    Annotation.image_shape = padded_image.shape
+
+    cv2.imwrite(image_path, padded_image)
     Annotation.write()
 
 
@@ -371,7 +394,7 @@ def main():
         "-val",
         type=int,
         default=None,
-        help="Number of validation images to generate (default: 20% of train)",
+        help="Number of validation images to generate (default: 20%% of train)",
     )
     args = parser.parse_args()
 
