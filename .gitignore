@@ -92,6 +92,7 @@ Pipfile.lock
 # Directories
 datasets/building_blocks
 datasets/for_model
+datasets/for_model_backup
 datasets/single_piece_masks
 datasets/real_games
 datasets/score_tests
