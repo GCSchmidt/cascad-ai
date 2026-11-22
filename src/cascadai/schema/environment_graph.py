@@ -1,3 +1,4 @@
+import logging
 import networkx as nx
 import numpy as np
 import math
@@ -8,8 +9,10 @@ from scipy.optimize import linear_sum_assignment
 from cascadai.schema.token_piece import Token_Type, Token
 
 
+logger = logging.getLogger(__name__)
+
 MAX_NEIGHBOURS = 6
-DISTANCE_FACTOR = 2.25
+DISTANCE_FACTOR = 2.5
 
 
 class EdegeDirectionClass(IntEnum):
@@ -27,7 +30,30 @@ class EnvironmentGraph:
     def __init__(self, tokens: list[Token]) -> None:
         self.token_graph = nx.Graph()  # initially true postions of tokens in image, then ideal hex lattics 
         self.primary_axis = 0  # base angle (degrees) for hexagon lattice
+        self._next_token_id = 0
         self.build_graph(tokens)
+
+    def _format_token(self, token) -> str:
+        data = self.token_graph.nodes[token]
+        token_type = data.get("type", token.type)
+        type_name = getattr(token_type, "name", str(token_type))
+        return f"{data.get('token_id')} {type_name} ({token.x:.1f}, {token.y:.1f})"
+
+    def _add_token_node(self, token) -> None:
+        token_id = None
+        if token in self.token_graph:
+            token_id = self.token_graph.nodes[token].get("token_id")
+        if token_id is None:
+            token_id = self._next_token_id
+            self._next_token_id += 1
+        self.token_graph.add_node(
+            token,
+            type=token.type,
+            x=token.x,
+            y=token.y,
+            width=token.width,
+            token_id=token_id,
+        )
 
     @property
     def latice_angles(self):
@@ -172,7 +198,14 @@ class EnvironmentGraph:
 
     def add_tokens(self, tokens) -> None:
         for i, t in enumerate(tokens):
-            self.token_graph.add_node(t, type=t.type, x=t.x, y=t.y, width=t.width)
+            self.token_graph.add_node(
+                t, type=t.type, x=t.x, y=t.y, width=t.width, token_id=i
+            )
+            self._next_token_id = max(self._next_token_id, i + 1)
+
+        logger.info("\n" + "-"*30 + "\n" + "TOKENS\n" + "-"*30)
+        for token in self.token_graph.nodes:
+            logger.info("%s", self._format_token(token))
 
     def get_token_distance_threshold(self):
         """
@@ -206,11 +239,23 @@ class EnvironmentGraph:
             if self.token_graph.degree[t1] < MAX_NEIGHBOURS and self.token_graph.degree[t2] < MAX_NEIGHBOURS:
                 self.token_graph.add_edge(t1, t2, weight=dists[index]) 
 
+        logger.info("\n" + "-"*30 + "\n" + "EDGES\n" + "-"*30)
+        for token in self.token_graph.nodes:
+            logger.info("%s", self._format_token(token))
+            neighbours = sorted(
+                self.token_graph.neighbors(token),
+                key=lambda n: self.token_graph.nodes[n].get("token_id", -1),
+            )
+            for i, neighbour in enumerate(neighbours, start=1):
+                logger.info(
+                    "  %d. %s - connected", i, self._format_token(neighbour)
+                )
+
     def build_graph(self, tokens):
         self.add_tokens(tokens)
         self.add_edges()
         self._hex_lattice_orientation_estimation()
-        self.fill_token_graph()
+        # self.fill_token_graph()
         self.assign_edge_classes()
 
     def fill_token_graph(self):
@@ -325,7 +370,7 @@ class EnvironmentGraph:
             x_new = d_x + node.x
             y_new = d_y + node.y
             blank_token = Token(Token_Type.BLANK, x_new, y_new, node.width)
-            self.token_graph.add_node(blank_token, type=blank_token.type, x=blank_token.x, y=blank_token.y, width=blank_token.width)
+            self._add_token_node(blank_token)
             # self.token_graph.add_edge(node, blank_token, weight=edge_length) 
 
     def build_ideal_lattice(self):
